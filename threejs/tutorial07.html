@@ -35,29 +35,37 @@
 
     <!--Check out jQuery!-->
     <script
-        src="https://code.jquery.com/jquery-3.1.1.min.js"
-        integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
-        crossorigin="anonymous"
+            src="https://code.jquery.com/jquery-3.1.1.min.js"
+            integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+            crossorigin="anonymous"
     ></script>
 
     <!-- Include Three.js library from google api -->
     <script
-        src="https://ajax.googleapis.com/ajax/libs/threejs/r76/three.min.js"
+            src="https://ajax.googleapis.com/ajax/libs/threejs/r76/three.min.js"
     ></script>
+
+    <!-- Create a DIV element, which will be shown over the WebGL canvas.
+    The last line ("Renderer: ") will be completed by "WebGL Renderer" -->
+    <div id="overlaytext" style="position: absolute; top: 10px; left: 10px">
+        'F': Loop through the three texture filters<br/>
+        'L': Toggle light<br/>
+        Cursor left / right: Control y rotation speed<br/>
+        Cursor up / down: Control x rotation speed<br/>
+        Page up / down: Move along z axis<br/>
+        Renderer:
+            <p>Min Filter: <span id="minFilterType">Linear</span><br/>
+               Mag Filter: <span id="magFilterType">Linear</span></p>
+            <p id="textureSize">Texture Size: 1024</p>
+    </div>
 
     <!-- This is the DIV element which will contain the WebGL canvas.
     To be identifiable later on, the id 'WebGLCanvas' is applied to it. -->
     <div id="WebGLCanvas">
         <!-- Load js script -->
 
-        <!-- This script renders static, colored shapes
-        <script src="js/main02.js"></script> -->
-
-        <!-- This script renders rotating, colored shapes
-        <script src="js/main04.js"></script> -->
-
         <!-- This script renders rotating, texture-mapped cube -->
-        <script src="js/main06.js"></script>
+        <script src="js/main07.js"></script>
 
     </div>
 
