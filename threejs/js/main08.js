@@ -1,9 +1,3 @@
-// Global scene object
-var scene;
-// Global camera object
-var camera;
-
-
 // x and y rotation
 var xRotation = 0.0;
 var yRotation = 0.0;
@@ -23,83 +17,38 @@ var zTranslation = 0.0;
 // 'enableLights' is the flag, which is switched by the key 'f'.
 // Texture and flag for current texture filter
 var filter = [ THREE.NearestFilter,
-               THREE.LinearFilter,
-               THREE.NearestMipMapNearestFilter,
-               THREE.LinearMipMapLinearFilter ];
+    THREE.LinearFilter,
+    THREE.NearestMipMapNearestFilter,
+    THREE.LinearMipMapLinearFilter ];
 var filterType = ["Nearest",
-                  "Linear",
-                  "NearestMipMapNearest",
-                  "LinearMipMapLinear"];
-
-// Flag for toggling light
-var ambientLight;
-var directionalLight;
-var intensity = 1;
+    "Linear",
+    "NearestMipMapNearest",
+    "LinearMipMapLinear"];
 
 // Global mesh object of the cube; need to access some of the properties of
 // the mesh in our key handlers
 var cubeMesh;
 
-var renderer;
-
 var gui;
 var options = setupDataGUI();
 
-// Initialize the scene
-initializeScene();
+// allocate the scene object, and set the camera position
+var scene = new GFX.Scene({cameraPos:[0, 0, 6]});
+
+var directionalLight = scene.directionalLights[0];
+var ambientLight = scene.ambientLights[0];
+var intensity = 1;
+
+// Initialize the demo
+initializeDemo();
+
 // Animate the scene (map the 3D world to the 2D scene)
 animateScene();
 
 /**
- * Initialize the scene.
+ * Initialize the demo.
  */
-function initializeScene(){
-
-    // Check whether the browser supports WebGL. If so, instantiate the hardware accelerated
-    // WebGL renderer. For antialiasing, we have to enable it. The canvas renderer uses
-    // antialiasing by default.
-    // The approach of multiple renderers is quite nice, because your scene can also be
-    // viewed in browsers, which don't support WebGL. The limitations of the canvas renderer
-    // in contrast to the WebGL renderer will be explained in the tutorials, when there is a
-    // difference.
-    renderer = new THREE.WebGLRenderer({antialias:true});
-    // Set the background color of the renderer to black, with full opacity
-    renderer.setClearColor(0x000000, 1);
-    // Get the size of the inner window (content area) to create a full size renderer
-    var canvasWidth = window.innerWidth;
-    var canvasHeight = window.innerHeight;
-    // Set the renderers size to the content areas size
-    renderer.setSize(canvasWidth, canvasHeight);
-    // Get the DIV element from the HTML document by its ID and append the renderers DOM
-    // object to it
-    document.getElementById("WebGLCanvas").appendChild(renderer.domElement);
-
-    // Create the scene, in which all objects are stored (e. g. camera, lights,
-    // geometries, ...)
-    scene = new THREE.Scene();
-    // Now that we have a scene, we want to look into it. Therefore we need a camera.
-    // Three.js offers three camera types:
-    //  - PerspectiveCamera (perspective projection)
-    //  - OrthographicCamera (parallel projection)
-    //  - CombinedCamera (allows to switch between perspective / parallel projection
-    //    during runtime)
-    // In this example we create a perspective camera. Parameters for the perspective
-    // camera are ...
-    // ... field of view (FOV),
-    // ... aspect ratio (usually set to the quotient of canvas width to canvas height)
-    // ... near and
-    // ... far.
-    // Near and far define the clipping planes of the view frustum. Three.js provides an
-    // example (http://mrdoob.github.com/three.js/examples/
-    // -> canvas_camera_orthographic2.html), which allows to play around with these
-    // parameters.
-    // The camera is moved 10 units towards the z axis to allow looking to the center of
-    // the scene.
-    // After definition, the camera has to be added to the scene.
-    camera = new THREE.PerspectiveCamera(45, canvasWidth / canvasHeight, 1, 100);
-    camera.position.set(0, 0, 10);
-    camera.lookAt(scene.position);
-    scene.add(camera);
+function initializeDemo(){
 
     // add texture-mapped cube
     var cubeGeometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
@@ -115,18 +64,11 @@ function initializeScene(){
     cubeMesh.position.set(0.0, 0.0, 0.0);
     scene.add(cubeMesh);
 
-    ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.2);
-    scene.add(ambientLight);
-
-    directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.0);
-    directionalLight.position.set(0, 0, 6).normalize();
-    scene.add(directionalLight);
-
     // Add a listener for 'keydown' events. By this listener, all key events will be
     // passed to the function 'onDocumentKeyDown'. There's another event type 'keypress'.
     // It will report only the visible characters like 'a', but not the function keys
     // like 'cursor up'.
-    document.addEventListener("keydown", onDocumentKeyDown, false);
+    document.addEventListener('keydown', onDocumentKeyDown, false);
 
 }
 
@@ -151,14 +93,7 @@ function animateScene(){
     requestAnimationFrame(animateScene);
 
     // Map the 3D scene down to the 2D screen (render the frame)
-    renderScene();
-}
-
-/**
- * Render the scene. Map the 3D world to the 2D screen.
- */
-function renderScene(){
-    renderer.render(scene, camera);
+    scene.renderScene();
 }
 
 /**
@@ -206,7 +141,7 @@ function setupDataGUI() {
 
     gui = new dat.GUI();
 
-    gui.add( options, 'rotating' ).onChange(function() {
+    gui.add(options, 'rotating').onChange(function() {
         //
         // if (options.rotating === false) {
         //     // xRotation = 0;
@@ -216,7 +151,8 @@ function setupDataGUI() {
         // }
     });
 
-    gui.add(options, "textureFilter", [ filterType[0], filterType[1], filterType[2], filterType[3]  ]).onChange(function() {
+    gui.add(options, "textureFilter",
+            [filterType[0], filterType[1], filterType[2], filterType[3]]).onChange(function() {
 
         options.nFilter = filterType.indexOf(options.textureFilter);
         updateFilter();
