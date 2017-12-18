@@ -27,13 +27,21 @@ var filterType = ["Nearest",
 
 // Global mesh object of the cube; need to access some of the properties of
 // the mesh in our key handlers
-var cubeMesh;
+var squareMesh;
+var num = 32;
+var star = new Array(num);
+var spin = 0;
 
 var gui;
 var options = setupDataGUI();
 
 // allocate the scene object, and set the camera position
-var scene = new GFX.Scene({cameraPos:[0, 0, 6]});
+var scene = new GFX.Scene({
+    cameraPos: [0, 0, 20],
+    axesHeight: 10,
+    controls: false,
+    displayStats: false
+});
 
 var directionalLight = scene.directionalLights[0];
 var ambientLight = scene.ambientLights[0];
@@ -50,23 +58,55 @@ animateScene();
  */
 function initializeDemo(){
 
-    // add texture-mapped cube
-    var cubeGeometry = new THREE.BoxGeometry(2.0, 2.0, 2.0);
-
     // load texture
-    var texture = new THREE.ImageUtils.loadTexture("images/img2.png");
-    var cubeMaterial = new THREE.MeshLambertMaterial({
-        map: texture,               // texture to use
-        side: THREE.DoubleSide,     // no back face culling
-        depthWrite: true,          //
-        transparent: true,          // needed even if opacity < 1
-        opacity: 0.9,
-        combine: THREE.MixOperation // mix foreground and background
-    });
+    var texture = new THREE.ImageUtils.loadTexture("images/waves-01.jpg");
 
-    cubeMesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    cubeMesh.position.set(0.0, 0.0, 0.0);
-    scene.add(cubeMesh);
+    for (var i = 0; i < num; i++) {
+        // add texture-mapped cube
+        var squareGeometry = new THREE.Geometry();
+        squareGeometry.vertices.push(new THREE.Vector3(-1, -1, 0));
+        squareGeometry.vertices.push(new THREE.Vector3(1, -1, 0));
+        squareGeometry.vertices.push(new THREE.Vector3(1, 1, 0));
+        squareGeometry.vertices.push(new THREE.Vector3(-1, 1, 0));
+        squareGeometry.faces.push(new THREE.Face3(0, 1, 2));
+        squareGeometry.faces.push(new THREE.Face3(0, 2, 3));
+        squareGeometry.faceVertexUvs[0].push([
+            new THREE.Vector2(0.0, 0.0),
+            new THREE.Vector2(1.0, 0.0),
+            new THREE.Vector2(1.0, 1.0)
+        ]);
+
+        squareGeometry.faceVertexUvs[0].push([
+            new THREE.Vector2(0.0, 0.0),
+            new THREE.Vector2(1.0, 1.0),
+            new THREE.Vector2(0.0, 1.0)
+        ]);
+        var squareMaterial = new THREE.MeshBasicMaterial({
+            map: texture,                // texture to use
+            transparent: true,           // needed even if opacity < 1
+            combine: THREE.MixOperation, // mix foreground and background
+            blending: THREE.AdditiveBlending,
+            color: 0xFFFFFF
+        });
+        // var squareMaterial = new THREE.MeshBasicMaterial({
+        //     map: texture,                // texture to use
+        //     transparent: true,           // needed even if opacity < 1
+        //     combine: THREE.MixOperation, // mix foreground and background
+        //     opacity: 0.7
+        // });
+        squareMesh = new THREE.Mesh(squareGeometry, squareMaterial);
+        squareMesh.position.set(0.0, 0.0, 0.0);
+        scene.add(squareMesh);
+
+        star[i] = new Object();
+        star[i].angle = 0.0;
+        star[i].dist = (i / num) * 5.0;
+        star[i].r = Math.random();
+        star[i].g = Math.random();
+        star[i].b = Math.random();
+        star[i].mesh = squareMesh;
+
+    }
 
     // Add a listener for 'keydown' events. By this listener, all key events will be
     // passed to the function 'onDocumentKeyDown'. There's another event type 'keypress'.
@@ -80,16 +120,38 @@ function initializeDemo(){
  * Animate the scene and call rendering.
  */
 function animateScene(){
-    // At first, we increase the y rotation of the triangle mesh and decrease the x
-    // rotation of the square mesh.
 
-    if (options.rotating) {
-        xRotation += xSpeed;
-        yRotation += ySpeed;
+
+    // Now loop through the stars and update their positions, spin and color
+    for(var i = 0; i < num; i++) {
+        spin += Math.PI * 2 / num;
+        if (spin > (Math.PI*2))
+            spin = 0;
+        // spin = 0;
+
+        // star[i].angle += i / num;
+        star[i].dist  -= 0.01;
+        if(star[i].dist < 0.0) {
+            star[i].dist += 5.0;
+
+            // note that the rgb color values must be in the range of 0..1 or the Color
+            // object will just clamp them to 1, i.e. white
+            star[i].r    = Math.random();
+            star[i].g    = Math.random();
+            star[i].b    = Math.random();
+        }
+
+        // we want to translate the star out to the right distance and the rotate it
+        // around the z-axis so we set the mesh's matrix to that translated value
+        // then rotate a second matrix and concatenate it onto the mesh's matrix.
+        star[i].mesh.matrix.setPosition(new THREE.Vector3(star[i].dist, 0, 0));
+        var mr = new THREE.Matrix4();
+        mr.makeRotationZ(spin);
+        star[i].mesh.applyMatrix(mr);
+
+        // then change the color of the mesh
+        star[i].mesh.material.color.setRGB(star[i].r, star[i].g, star[i].b);
     }
-
-    cubeMesh.rotation.set(xRotation, yRotation, 0.0);
-    cubeMesh.position.z = zTranslation;
 
     // Define the function, which is called by the browser supported timer loop. If the
     // browser tab is not visible, the animation is paused. So 'animateScene()' is called
@@ -156,7 +218,7 @@ function setupDataGUI() {
     });
 
     gui.add(options, "textureFilter",
-            [filterType[0], filterType[1], filterType[2], filterType[3]]).onChange(function() {
+        [filterType[0], filterType[1], filterType[2], filterType[3]]).onChange(function() {
 
         options.nFilter = filterType.indexOf(options.textureFilter);
         updateFilter();

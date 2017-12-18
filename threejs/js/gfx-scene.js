@@ -197,7 +197,7 @@ GFX.Scene.prototype.initialize = function() {
     if (this.defaultLights === true)
         this.setDefaultLights();
 
-    if ( this.axesHeight !== 0 )
+    if (this.axesHeight !== 0)
         this.drawAxes(this.axesHeight);
 
     if (this.floorRepeat !== 0)
@@ -602,19 +602,15 @@ GFX.Scene.prototype.addFloor = function(floorRepeat) {
 
 GFX.Scene.prototype.drawAxis = function(axis, axisColor, axisHeight) {
 
-    var		AXIS_RADIUS   =	axisHeight/200.0;
-    var		AXIS_HEIGHT   =	axisHeight;
-    var		AXIS_STEP     =	axisHeight/20.0;
-    var    	AXIS_SEGMENTS = 32;
-    var		AXIS_GRAY     = 0x777777;
-    var		AXIS_WHITE    = 0xEEEEEE;
-    var     curColor;
+    var AXIS_RADIUS   =	axisHeight/200.0;
+    var	AXIS_HEIGHT   =	axisHeight;
+    var	AXIS_STEP     =	axisHeight/20.0;
+    var AXIS_SEGMENTS = 32;
+    var	AXIS_GRAY     = 0x777777;
+    var	AXIS_WHITE    = 0xEEEEEE;
+    var curColor;
 
-    //console.log("drawAxis " + axis + " ht: " +  AXIS_HEIGHT + ", " + AXIS_STEP + " color: " + axisColor);
-
-    for ( var i=0; i<(AXIS_HEIGHT/AXIS_STEP); i++ )
-    {
-        //console.log("loop " +  i);
+    for (var i = 0; i < (AXIS_HEIGHT/AXIS_STEP); i++) {
 
         var pos = -AXIS_HEIGHT / 2 + i * AXIS_STEP;
 
@@ -625,35 +621,27 @@ GFX.Scene.prototype.drawAxis = function(axis, axisColor, axisHeight) {
         else
             curColor = AXIS_WHITE;
 
-        //console.log(i + " pos: " + pos + " color: " + curColor);
-
-        var geometry = new THREE.CylinderGeometry( AXIS_RADIUS, AXIS_RADIUS, AXIS_STEP, AXIS_SEGMENTS );
-        var material = new THREE.MeshLambertMaterial( { color: curColor } );
-        var cylinder = new THREE.Mesh( geometry, material );
+        var geometry = new THREE.CylinderGeometry(
+            AXIS_RADIUS, AXIS_RADIUS, AXIS_STEP, AXIS_SEGMENTS);
+        var material = new THREE.MeshLambertMaterial({color: curColor});
+        var cylinder = new THREE.Mesh(geometry, material);
 
         pos += AXIS_STEP/2.0;
-        if (axis === X_AXIS)
-        {
+        if (axis === X_AXIS) {
             cylinder.position.x = pos;
             cylinder.rotation.z = Math.PI/2;
-        }
-        else if (axis === Y_AXIS)
-        {
+        } else if (axis === Y_AXIS) {
             cylinder.rotation.y = Math.PI/2;
             cylinder.position.y = pos;
-        }
-        else
-        {
+        } else {
             cylinder.position.z = pos;
             cylinder.rotation.x = Math.PI/2;
         }
-
         this.scene.add( cylinder );
     }
 };
 
 GFX.Scene.prototype.drawAxes = function(height) {
-
     this.drawAxis(X_AXIS, 0xff0000, height);
     this.drawAxis(Y_AXIS, 0x00ff00, height);
     this.drawAxis(Z_AXIS, 0x0000ff, height);
