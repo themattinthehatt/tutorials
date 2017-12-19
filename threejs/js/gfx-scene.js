@@ -5,29 +5,27 @@
 var GFX = { revision: '03' };
 
 //some constants
-var    	X_AXIS = 0;
-var    	Y_AXIS = 1;
-var    	Z_AXIS = 2;
+var X_AXIS = 0;
+var Y_AXIS = 1;
+var Z_AXIS = 2;
 
 GFX.Scene = function(parameters) {
 
     this.scene = null;
-    this.renderer = null;
     this.containerID = null;
-    this.shadowMapEnabled = false;
-    this.alphaBuffer = false;
 
+    // renderer info
+    this.renderer = null;
+    this.alphaBuffer = false;
     this.clearColor = 0x000000;
     this.autoClear = true;
-
     this.canvasWidth = 0;
     this.canvasHeight = 0;
 
+    // cameras and defaults
     this.defaultCamera = true;
     this.cameras = [];
-    // just a proxy for backwards compatibility
     this.camera = undefined;
-    // these are the default values that can be overridden by the user
     this.perspective = true;
     this.fov = 45;
     this.near = 0.01;
@@ -35,33 +33,27 @@ GFX.Scene = function(parameters) {
     this.cameraPos = [0, 20, 40];
     this.orthoSize = 1;
 
+    // camera controls
     this.controls = false;
     this.orbitControls = [];
 
-    this.displayStats = false;
-    this.fpStats = null;
-    this.msStats = null;
-    this.mbStats = null;
-
+    // lighting
     this.defaultLights = true;
     this.ambientLights = [];
     this.directionalLights = [];
     this.pointLights = [];
     this.hemisphereLights = [];
     this.spotLights = [];
+    this.shadowMapEnabled = false;
 
+    // axes
     this.axesHeight = 0;
 
-    this.floorRepeat = 0;
-    this.floorX      = 0;
-    this.floorZ      = 0;
-    this.floorImage  = null;
-
-    this.fogType = 'none';	// else 'linear' or 'exponential'
-    this.fogDensity = 0;
-    this.fogColor = 0xffffff;
-    this.fogNear = 0.015;
-    this.fogFar = 100;
+    // info displays
+    this.displayStats = false;
+    this.fpStats = null;
+    this.msStats = null;
+    this.mbStats = null;
 
     GFX.setParameters(this, parameters);
 
@@ -118,8 +110,6 @@ GFX.Scene.prototype.initialize = function() {
     // (e. g. camera, lights, geometries, ...)
     this.scene = new THREE.Scene();
 
-    //this.addFog();
-
     // WINDOW
     // If the user didn't supply a fixed size for the window,
     // get the size of the inner window (content area)
@@ -138,7 +128,7 @@ GFX.Scene.prototype.initialize = function() {
             _self.canvasHeight = window.innerHeight;
             var aspect = _self.canvasWidth / _self.canvasHeight;
 
-            if (_self.perspective === true ) {
+            if (_self.perspective === true) {
                 _self.cameras[0].aspect = aspect;
             } else {
                 var w2 = _self.orthoSize * aspect / 2;
@@ -149,9 +139,8 @@ GFX.Scene.prototype.initialize = function() {
                 _self.cameras[0].top    = h2;
                 _self.cameras[0].bottom = -h2;
             }
-
             _self.cameras[0].updateProjectionMatrix();
-            _self.renderer.setSize( _self.canvasWidth, _self.canvasHeight );
+            _self.renderer.setSize( _self.canvasWidth, _self.canvasHeight);
         });
     }
 
@@ -179,9 +168,10 @@ GFX.Scene.prototype.initialize = function() {
     // Set the background color of the renderer to black or the user-defined
     // color, with full opacity
     this.renderer.setClearColor(new THREE.Color(this.clearColor), 1);
-    // Set the renderers size to the content areas size
+    // Set the renderer's size to the content area's size
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
-    // Get the DIV element from the HTML document by its ID and append the renderer's DOM object
+    // Get the DIV element from the HTML document by its ID and append the
+    // renderer's DOM object
     container.appendChild(this.renderer.domElement);
 
 
@@ -189,22 +179,17 @@ GFX.Scene.prototype.initialize = function() {
     if (this.defaultCamera === true)
         this.setDefaultCamera();
 
-    if (this.shadowMapEnabled === true )
-        this.renderer.shadowMap.enabled = true;
-
-
     // if the user hasn't set defaultLights to false, then set them up
     if (this.defaultLights === true)
         this.setDefaultLights();
 
+    // draw axes for orienting
     if (this.axesHeight !== 0)
         this.drawAxes(this.axesHeight);
 
-    if (this.floorRepeat !== 0)
-        this.addFloor(this.floorRepeat);
-
     // set up the stats window(s) if requested
-    this.setupStats(container);
+    if (this.displayStats === true)
+        this.setupStats(container);
 
 };
 
@@ -238,8 +223,9 @@ GFX.Scene.prototype.renderScene = function(camera) {
 /**
  * Set up the camera for the scene.  Perspective or Orthographic
  */
-GFX.Scene.prototype.setDefaultCamera = function (jsonObj) {
+GFX.Scene.prototype.setDefaultCamera = function(jsonObj) {
 
+    // why is this here?
     if (this.cameras.length > 0)
         this.cameras.pop();
 
@@ -252,10 +238,10 @@ GFX.Scene.prototype.setDefaultCamera = function (jsonObj) {
             far: this.far
         };
         return this.addCamera(newObj, 0);
+    } else {
+        return this.addCamera(jsonObj, 0);
     }
-
-    return this.addCamera(jsonObj, 0);
-},
+};
 
 GFX.Scene.prototype.addCamera = function (jsonObj, index) {
     // assign the current/default global values to the local values
@@ -270,7 +256,7 @@ GFX.Scene.prototype.addCamera = function (jsonObj, index) {
         if (jsonObj.perspective !== undefined)
             perspective = jsonObj.perspective;
 
-        cameraPos   = jsonObj.cameraPos || this.camerPos;
+        cameraPos   = jsonObj.cameraPos || this.cameraPos;
         fov         = jsonObj.fov || this.fov;
         near        = jsonObj.near || this.near;
         far         = jsonObj.far || this.far;
@@ -290,7 +276,6 @@ GFX.Scene.prototype.addCamera = function (jsonObj, index) {
 
     camera.updateProjectionMatrix();
     camera.position.set(cameraPos[0], cameraPos[1], cameraPos[2]);
-
     camera.lookAt(this.scene.position);
 
     if (index === undefined)
@@ -312,33 +297,30 @@ GFX.Scene.prototype.addCamera = function (jsonObj, index) {
     return camera;
 };
 
-GFX.Scene.prototype.getCamera = function (index) {
-
+GFX.Scene.prototype.getCamera = function(index) {
     if (this.cameras.length < 1 || index < 0 || index >= this.cameras.length)
         return null;
 
-    if ( index === undefined )
+    if (index === undefined) {
         return this.cameras[0];
-    else
+    } else {
         return this.cameras[index];
-};
-
-GFX.Scene.prototype.setDefaultControls = function() {
-
-    if (this.cameras.length > 0)
-        this.addControls( this.cameras[0] );
-};
-
-GFX.Scene.prototype.addControls = function (camera) {
-
-    if (camera !== null && typeof camera !== 'undefined') {
-        this.orbitControls.push( new THREE.OrbitControls(camera, this.renderer.domElement) );
     }
 };
 
-GFX.Scene.prototype.updateControls = function () {
+GFX.Scene.prototype.setDefaultControls = function() {
+    if (this.cameras.length > 0)
+        this.addControls(this.cameras[0]);
+};
 
-    for ( var i=0; i<this.orbitControls.length; i++ ) {
+GFX.Scene.prototype.addControls = function(camera) {
+    if (camera !== null && typeof camera !== 'undefined') {
+        this.orbitControls.push(new THREE.OrbitControls(camera, this.renderer.domElement) );
+    }
+};
+
+GFX.Scene.prototype.updateControls = function() {
+    for (var i = 0; i < this.orbitControls.length; i++) {
         this.orbitControls[i].update();
     }
 };
@@ -346,7 +328,7 @@ GFX.Scene.prototype.updateControls = function () {
 /**
  * If the user doesn't want to set custom lights, just allocate some defaults
  */
-GFX.Scene.prototype.setDefaultLights = function () {
+GFX.Scene.prototype.setDefaultLights = function() {
     // Ambient light has no direction, it illuminates every object with the same
     // intensity. If only ambient light is used, no shading effects will occur.
     var ambLight = new THREE.AmbientLight(0xc0c0c0, 0.75);
@@ -366,7 +348,7 @@ GFX.Scene.prototype.setDefaultLights = function () {
     this.pointLights.push(pointLight);
 };
 
-GFX.Scene.prototype.getDefaultLight = function (type) {
+GFX.Scene.prototype.getDefaultLight = function(type) {
     if ( type.indexOf("directional") !== -1 &&
         this.directionalLights.length > 0 ) {
         return this.directionalLights[0];
@@ -405,7 +387,7 @@ GFX.Scene.prototype.getDefaultLight = function (type) {
  * @param type
  * @param values
  */
-GFX.Scene.prototype.addLight = function (type, values) {
+GFX.Scene.prototype.addLight = function(type, values) {
 
     var light;
     var color = this.getLightProp('color', values, 0xffffff);
@@ -474,15 +456,12 @@ GFX.Scene.prototype.addLight = function (type, values) {
     return light;
 };
 
-GFX.Scene.prototype.getLightProp = function (prop, values, def) {
+GFX.Scene.prototype.getLightProp = function(prop, values, def) {
     var value = values[ prop ];
     return ( value === undefined ) ? def : value;
 };
 
-/**
- * Remove all the lights currently created for the scene
- */
-GFX.Scene.prototype.clearAllLights = function () {
+GFX.Scene.prototype.clearAllLights = function() {
 
     this.clearLights( this.ambientLights );
     this.clearLights( this.directionalLights );
@@ -494,7 +473,7 @@ GFX.Scene.prototype.clearAllLights = function () {
 /**
  * Remove all the lights from the specified array
  */
-GFX.Scene.prototype.clearLights = function (lightArray) {
+GFX.Scene.prototype.clearLights = function(lightArray) {
 
     while (lightArray.length > 0) {
         this.scene.remove(lightArray.pop());
@@ -503,8 +482,6 @@ GFX.Scene.prototype.clearLights = function (lightArray) {
 
 GFX.Scene.prototype.setupStats = function(container) {
     var pos = 0;
-    if (this.displayStats === false)
-        return;
 
     if (this.displayStats === true || this.displayStats.indexOf("fps") !== -1) {
         this.fpStats = new Stats();
@@ -540,64 +517,6 @@ GFX.Scene.prototype.updateStats = function() {
         this.msStats.update();
     if (this.mbStats !== null && typeof this.mbStats !== 'undefined')
         this.mbStats.update();
-};
-
-GFX.Scene.prototype.addFog = function(values) {
-
-    if ( values !== undefined ) {
-
-        for ( var key in values ) {
-
-            var newValue = values[ key ];
-
-            if ( newValue === undefined ) {
-                console.warn( "Fog parameter '" + key + "' parameter is undefined." );
-                continue;
-            }
-
-            if ( key === 'fogType' )
-                this.fogType = newValue;
-            else if ( key === 'fogDensity' )
-                this.fogDensity = newValue;
-            else if ( key === 'fogColor' )
-                this.fogColor = newValue;
-            else if ( key === 'fogNear' )
-                this.fogNear = newValue;
-            else if ( key === 'fogFar' )
-                this.fogFar = newValue;
-        }
-    }
-
-    if (this.fogType === 'exponential')
-        this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity );
-    else if (this.fogType === 'linear')
-        this.scene.fog = new THREE.Fog( this.fogColor, this.fogNear, this.fogFar );
-    else
-        this.scene.fog = null;
-};
-
-GFX.Scene.prototype.addFloor = function(floorRepeat) {
-
-    if (this.floorRepeat === 0)
-        this.floorRepeat = floorRepeat;
-
-    // note: 4x4 checker-board pattern scaled so that each square is 25 by 25 pixels.
-    var image = this.floorImage === null ? '../images/checkerboard.jpg' : this.floorImage;
-    var texture = new THREE.ImageUtils.loadTexture( image );
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set( this.floorRepeat, this.floorRepeat );
-
-    // DoubleSide: render texture on both sides of mesh
-    var floorMaterial = new THREE.MeshBasicMaterial( { map: texture, side: THREE.DoubleSide } );
-    var width = this.floorX === 0 ? 10 : this.floorX;
-    var height = this.floorZ === 0 ? 10 : this.floorZ;
-
-    var floorGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
-    var floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    floor.position.y = 0.0;
-    floor.rotation.x = Math.PI / 2;
-    floor.receiveShadow = this.shadowMapEnabled;
-    this.scene.add(floor);
 };
 
 GFX.Scene.prototype.drawAxis = function(axis, axisColor, axisHeight) {
@@ -646,4 +565,3 @@ GFX.Scene.prototype.drawAxes = function(height) {
     this.drawAxis(Y_AXIS, 0x00ff00, height);
     this.drawAxis(Z_AXIS, 0x0000ff, height);
 };
-
