@@ -44,7 +44,7 @@ function initializeDemo(){
     // passed to the function 'onDocumentKeyDown'. There's another event type 'keypress'.
     // It will report only the visible characters like 'a', but not the function keys
     // like 'cursor up'.
-    document.addEventListener('keydown', onDocumentKeyDown, false);
+    // document.addEventListener('keydown', onDocumentKeyDown, false);
 
 }
 
@@ -84,32 +84,32 @@ function animateScene(){
     scene.renderScene();
 }
 
-/**
- * This function is called, when a key is pushed down.
- */
-function onDocumentKeyDown(event) {
-    var key = event.key;
-    key = key.toLowerCase();
-
-    if (key === 'f') {            // 'F' - Toggle through the texture filters
-        updateFilter();
-    } else if (key === 'l') {       // 'L' - Toggle light
-        intensity = intensity > 0 ? 0 : 1;
-        //directionalLight.intensity = ambientLight.intensity = intensity;
-        directionalLight.intensity = intensity;
-    } else if (key === 'arrowup') {       // Cursor up
-        xSpeed -= 0.005;
-    } else if (key === 'arrowdown') {       // Cursor down
-        xSpeed += 0.005;
-    } else if (key === 'arrowleft') {       // Cursor left
-        ySpeed -= 0.005;
-    } else if (key === 'arrowright') {       // Cursor right
-        ySpeed += 0.005;
-    } else if (key === 'w') {
-        zTranslation -= 0.2;
-    } else if (key === 's') {       // Page down
-        zTranslation += 0.2;
-    }
-
-    event.stopPropagation();
-}
+// /**
+//  * This function is called, when a key is pushed down.
+//  */
+// function onDocumentKeyDown(event) {
+//     var key = event.key;
+//     key = key.toLowerCase();
+//
+//     if (key === 'f') {            // 'F' - Toggle through the texture filters
+//         updateFilter();
+//     } else if (key === 'l') {       // 'L' - Toggle light
+//         intensity = intensity > 0 ? 0 : 1;
+//         //directionalLight.intensity = ambientLight.intensity = intensity;
+//         directionalLight.intensity = intensity;
+//     } else if (key === 'arrowup') {       // Cursor up
+//         xSpeed -= 0.005;
+//     } else if (key === 'arrowdown') {       // Cursor down
+//         xSpeed += 0.005;
+//     } else if (key === 'arrowleft') {       // Cursor left
+//         ySpeed -= 0.005;
+//     } else if (key === 'arrowright') {       // Cursor right
+//         ySpeed += 0.005;
+//     } else if (key === 'w') {
+//         zTranslation -= 0.2;
+//     } else if (key === 's') {       // Page down
+//         zTranslation += 0.2;
+//     }
+//
+//     event.stopPropagation();
+// }

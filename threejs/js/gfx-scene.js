@@ -92,7 +92,6 @@ GFX.setParameters = function(object, values) {
             else {
                 object[key] = newValue;
             }
-
         }
     }
 };
