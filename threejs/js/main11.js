@@ -6,8 +6,8 @@ var squareMesh;
 
 // allocate the scene object, and set the camera position
 var scene = new GFX.Scene({
-    cameraPos: [0, 0, 20],
-    axesHeight: 10,
+    cameraPos: [-20, 0, 0],
+    axesHeight: 5,
     controls: true,
     displayStats: true
 });
@@ -28,7 +28,8 @@ animateScene();
 function initializeDemo(){
 
     // load texture
-    var texture = new THREE.ImageUtils.loadTexture("images/waves-01.jpg");
+    // var texture = new THREE.ImageUtils.loadTexture("images/waves-01.jpg");
+    var texture = new THREE.ImageUtils.loadTexture("images/sierra_in_snow.jpg");
 
     var squareGeometry = new THREE.ParametricGeometry(sineWave, 45, 45);
     var squareMaterial = new THREE.MeshLambertMaterial({

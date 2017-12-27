@@ -10,17 +10,18 @@ keyStates = {};
 // Only pay attention to standard ASCII keys
 for (var i = 32; i < 128; i++) {
     var c = String.fromCharCode(i);
-    // console.log('key ' + i + ': ' + c);
+    console.log('key ' + i + ': ' + c);
     keyStates[c] = false;
 }
 keyStates['arrowright'] = false;
 keyStates['arrowleft'] = false;
 keyStates['arrowup'] = false;
 keyStates['arrowdown'] = false;
+keyStates['control'] = false;
 
-THREE.OrbitControls = function(object, domElement) {
+THREE.OrbitControls = function(camera, domElement) {
 
-    this.object = object;
+    this.camera = camera;
     this.domElement = (domElement !== undefined) ? domElement : document;
 
     // API
@@ -29,80 +30,111 @@ THREE.OrbitControls = function(object, domElement) {
 
     this.center = new THREE.Vector3();
 
-    this.userZoom = true;
     this.userZoomSpeed = 1.0;
-
-    this.userRotate = true;
-    this.userRotateSpeed = 1.0;
-
-    this.userPan = true;
+    this.userRotateSpeed = 0.01;
     this.userPanSpeed = 0.1;
 
-    this.autoRotate = false;
-    this.autoRotateSpeed = 2.0; // 30 seconds per round when fps is 60
+    // start near origin facing along y-axis
+    this.position0 = new THREE.Vector3(-20, 0, 0);
+    this.horizontalAngle0 = 0.0;
+    this.verticalAngle0 = Math.PI / 2;
 
-    this.minPolarAngle = 0; // radians
-    this.maxPolarAngle = Math.PI; // radians
+    this.position = this.position0;
+    this.horizontalAngle = this.horizontalAngle0;
+    this.verticalAngle = this.verticalAngle0;
 
-    this.minDistance = 0;
-    this.maxDistance = Infinity;
+    // update heading information
+    this.heading = new THREE.Vector3(
+        Math.cos(this.horizontalAngle) * Math.sin(this.verticalAngle),
+        Math.sin(this.horizontalAngle) * Math.sin(this.verticalAngle),
+        Math.cos(this.verticalAngle)
+    );
+    // right vector
+    this.right = new THREE.Vector3(
+        Math.cos(this.horizontalAngle - Math.PI / 2),
+        Math.sin(this.horizontalAngle - Math.PI / 2),
+        0
+    );
+    // up vector
+    this.up = new THREE.Vector3(0.0, 0.0, 0.0);
+    this.up.crossVectors(this.right, this.heading);
 
     // internals
     this.EPS = 0.000001;
     this.PIXELS_PER_ROUND = 1800;
 
-    this.rotateStart = new THREE.Vector2();
-    this.rotateEnd = new THREE.Vector2();
-    this.rotateDelta = new THREE.Vector2();
-
-    this.zoomStart = new THREE.Vector2();
-    this.zoomEnd = new THREE.Vector2();
-    this.zoomDelta = new THREE.Vector2();
-
-    this.phiDelta = 0;
-    this.thetaDelta = 0;
-    this.scale = 1;
-
-    this.lastPosition = new THREE.Vector3();
-
     // events
-    // window.addEventListener('keydown', onKeyDown, false);
-    // window.addEventListener('keyup', onKeyUp, false);
+    window.addEventListener('keydown', onKeyDown, false);
+    window.addEventListener('keyup', onKeyUp, false);
 
-    document.addEventListener('keydown', onKeyDown, false);
-    document.addEventListener('keyup', onKeyUp, false);
+    // document.addEventListener('keydown', onKeyDown, false);
+    // document.addEventListener('keyup', onKeyUp, false);
 
 };
 
 // subclass event dispatcher
 THREE.OrbitControls.prototype = Object.create(THREE.EventDispatcher.prototype);
 
-THREE.OrbitControls.prototype.pan = function ( distance ) {
-
-    distance.transformDirection( this.object.matrix );
-    distance.multiplyScalar( this.userPanSpeed );
-
-    this.object.position.add( distance );
-    this.center.add( distance );
-
+THREE.OrbitControls.prototype.moveRight = function(distance) {
+    this.position.addScaledVector(this.right.clone(), distance);
+};
+THREE.OrbitControls.prototype.moveLeft = function(distance) {
+    this.position.addScaledVector(this.right.clone(), -distance);
+};
+THREE.OrbitControls.prototype.moveUp = function(distance) {
+    this.position.addScaledVector(this.up.clone(), distance);
+};
+THREE.OrbitControls.prototype.moveDown = function(distance) {
+    this.position.addScaledVector(this.up.clone(), -distance);
+};
+THREE.OrbitControls.prototype.moveForward = function(distance) {
+    this.position.addScaledVector(this.heading.clone(), distance);
+};
+THREE.OrbitControls.prototype.moveBackward = function(distance) {
+    this.position.addScaledVector(this.heading.clone(), -distance);
+};
+THREE.OrbitControls.prototype.rotateUp = function(rotationAngle) {
+    this.verticalAngle -= rotationAngle; // we're in standard spherical coords
+};
+THREE.OrbitControls.prototype.rotateDown = function(rotationAngle) {
+    this.verticalAngle += rotationAngle;
+};
+THREE.OrbitControls.prototype.rotateRight = function(rotationAngle) {
+    this.horizontalAngle -= rotationAngle;
+};
+THREE.OrbitControls.prototype.rotateLeft = function(rotationAngle) {
+    this.horizontalAngle += rotationAngle;
 };
 
 THREE.OrbitControls.prototype.update = function () {
 
     this.handleKeys();
 
-    // var position = this.object.position;
-    // var offset = position.clone().sub( this.center );
+    // update heading information
+    this.heading.set(
+        Math.cos(this.horizontalAngle) * Math.sin(this.verticalAngle),
+        Math.sin(this.horizontalAngle) * Math.sin(this.verticalAngle),
+        Math.cos(this.verticalAngle)
+    );
+    // right vector
+    this.right.set(
+        Math.cos(this.horizontalAngle - Math.PI / 2),
+        Math.sin(this.horizontalAngle - Math.PI / 2),
+        0
+    );
+    // up vector
+    this.up.crossVectors(this.right, this.heading);
+
+    this.camera.position.set(this.position.x, this.position.y, this.position.z);
+    this.camera.up.set(this.up.x, this.up.y, this.up.z);
+
+    this.camera.lookAt(this.position.clone().add(this.heading));
+
+    // if ( this.lastPosition.distanceTo( this.camera.position ) > 0 ) {
     //
-    // position.copy( this.center ).add( offset );
-    //
-    // this.object.lookAt( this.center );
-    //
-    // if ( this.lastPosition.distanceTo( this.object.position ) > 0 ) {
-    //
-    //     this.dispatchEvent( this.changeEvent );
-    //
-    //     this.lastPosition.copy( this.object.position );
+        // this.dispatchEvent( this.changeEvent );
+        //
+        // this.lastPosition.copy( this.camera.position );
     //
     // }
 
@@ -112,29 +144,43 @@ THREE.OrbitControls.prototype.update = function () {
 THREE.OrbitControls.prototype.handleKeys = function() {
     // move right
     if (keyStates['arrowright']) {
-        this.pan(new THREE.Vector3(this.userPanSpeed, 0, 0 ));
+        this.moveRight(this.userPanSpeed);
     }
     // move left
     if (keyStates['arrowleft']) {
-        this.pan(new THREE.Vector3(-this.userPanSpeed, 0, 0 ));
+        this.moveLeft(this.userPanSpeed);
     }
     // move up
-    if (keyStates['arrowup']) {
-        this.pan(new THREE.Vector3(0, this.userPanSpeed, 0 ));
+    if (keyStates['arrowup'] && keyStates['control']) {
+        this.moveUp(this.userPanSpeed);
     }
     // move down
-    if (keyStates['arrowdown']) {
-        this.pan(new THREE.Vector3(0, -this.userPanSpeed, 0 ));
+    if (keyStates['arrowdown'] && keyStates['control']) {
+        this.moveDown(this.userPanSpeed);
     }
-
-    // S - move down
-    if (keyStates['s']) {
-        // camera.translateY(-cameraMoveSpeed());
+    // move forward
+    if (keyStates['arrowup'] && !keyStates['control']) {
+        this.moveForward(this.userPanSpeed);
     }
-
-    // W - move up
+    // move backward
+    if (keyStates['arrowdown'] && !keyStates['control']) {
+        this.moveBackward(this.userPanSpeed);
+    }
+    // rotate up
     if (keyStates['w']) {
-        // camera.translateY(cameraMoveSpeed());
+        this.rotateUp(this.userRotateSpeed);
+    }
+    // rotate down
+    if (keyStates['s']) {
+        this.rotateDown(this.userRotateSpeed);
+    }
+    // rotate right
+    if (keyStates['d']) {
+        this.rotateRight(this.userRotateSpeed);
+    }
+    // rotate up
+    if (keyStates['a']) {
+        this.rotateLeft(this.userRotateSpeed);
     }
 };
 

@@ -208,6 +208,9 @@ GFX.Scene.prototype.renderScene = function(camera) {
     if (this.cameras.length < 1)
         return;
 
+    this.updateControls();
+    this.updateStats();
+
     if (camera === undefined) {
         for (var i = 0; i < this.cameras.length; i++)
             this.renderer.render(this.scene, this.cameras[i]);
@@ -215,8 +218,6 @@ GFX.Scene.prototype.renderScene = function(camera) {
     else {
         this.renderer.render(this.scene, camera);
     }
-    this.updateControls();
-    this.updateStats();
 };
 
 /**
