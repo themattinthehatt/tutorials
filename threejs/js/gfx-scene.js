@@ -29,7 +29,7 @@ GFX.Scene = function(parameters) {
     this.perspective = true;
     this.fov = 45;
     this.near = 0.01;
-    this.far = 1000;
+    this.far = 10000;
     this.cameraPos = [0, 20, 40];
     this.orthoSize = 1;
 
@@ -45,6 +45,7 @@ GFX.Scene = function(parameters) {
     this.hemisphereLights = [];
     this.spotLights = [];
     this.shadowMapEnabled = false;
+    this.skybox = true;
 
     // axes
     this.axesHeight = 0;
@@ -166,7 +167,7 @@ GFX.Scene.prototype.initialize = function() {
     this.renderer.autoClear = this.autoClear;
     // Set the background color of the renderer to black or the user-defined
     // color, with full opacity
-    this.renderer.setClearColor(new THREE.Color(this.clearColor), 1);
+    this.renderer.setClearColor(new THREE.Color(this.clearColor), 0.2);
     // Set the renderer's size to the content area's size
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
     // Get the DIV element from the HTML document by its ID and append the
@@ -185,6 +186,10 @@ GFX.Scene.prototype.initialize = function() {
     // draw axes for orienting
     if (this.axesHeight !== 0)
         this.drawAxes(this.axesHeight);
+
+    // skybox
+    if (this.skybox === true)
+        this.drawSkybox();
 
     // set up the stats window(s) if requested
     if (this.displayStats === true)
@@ -480,45 +485,6 @@ GFX.Scene.prototype.clearLights = function(lightArray) {
     }
 };
 
-GFX.Scene.prototype.setupStats = function(container) {
-    var pos = 0;
-
-    if (this.displayStats === true || this.displayStats.indexOf("fps") !== -1) {
-        this.fpStats = new Stats();
-        this.fpStats.showPanel(0);
-        this.fpStats.dom.style.left = pos + 'px';
-        pos += 80;
-        container.appendChild( this.fpStats.dom );
-    }
-
-    if (typeof this.displayStats === 'string' && this.displayStats.indexOf("ms") !== -1) {
-        this.msStats = new Stats();
-        this.msStats.showPanel(1);
-        //this.msStats.domElement.style.position = 'absolute';
-        //this.msStats.domElement.style.bottom = '0px';
-        this.msStats.dom.style.left = pos + 'px';
-        pos += 80;
-        //this.msStats.domElement.style.zIndex = 100;
-        container.appendChild( this.msStats.dom );
-    }
-
-    if (typeof this.displayStats === 'string' && this.displayStats.indexOf("mb") !== -1) {
-        this.mbStats = new Stats();
-        this.mbStats.showPanel(2);
-        this.mbStats.dom.style.left = pos + '80px';
-        container.appendChild( this.mbStats.dom );
-    }
-};
-
-GFX.Scene.prototype.updateStats = function() {
-    if (this.fpStats !== null && typeof this.fpStats !== 'undefined')
-        this.fpStats.update();
-    if (this.msStats !== null && typeof this.msStats !== 'undefined')
-        this.msStats.update();
-    if (this.mbStats !== null && typeof this.mbStats !== 'undefined')
-        this.mbStats.update();
-};
-
 GFX.Scene.prototype.drawAxis = function(axis, axisColor, axisHeight) {
 
     var AXIS_RADIUS   =	axisHeight/200.0;
@@ -556,7 +522,7 @@ GFX.Scene.prototype.drawAxis = function(axis, axisColor, axisHeight) {
             cylinder.position.z = pos;
             cylinder.rotation.x = Math.PI/2;
         }
-        this.scene.add( cylinder );
+        this.scene.add(cylinder);
     }
 };
 
@@ -564,4 +530,75 @@ GFX.Scene.prototype.drawAxes = function(height) {
     this.drawAxis(X_AXIS, 0xff0000, height);
     this.drawAxis(Y_AXIS, 0x00ff00, height);
     this.drawAxis(Z_AXIS, 0x0000ff, height);
+};
+
+GFX.Scene.prototype.drawSkybox = function() {
+
+    // why doesn't this work?
+    // var paths = [
+    //     'front.png', 'back.png',
+    //     'left.png', 'right.png',
+    //     'up.png', 'down.png'
+    // ];
+    // var loader = new THREE.CubeTextureLoader();
+    // loader.setPath('images/stars/');
+    // this.scene.background = loader.load(paths);
+
+    // from https://stemkoski.github.io/Three.js/Skybox.html
+    // var path = 'images/stars/';
+    // var images  = ['front', 'back', 'left', 'right', 'up', 'down'];
+    var path = 'images/ame_starfield/starfield_';
+    var images  = ['ft', 'bk', 'lf', 'rt', 'up', 'dn'];
+    var format = '.png';
+    var geometry = new THREE.CubeGeometry(5000, 5000, 5000);
+
+    var materialArray = [];
+    for (var i = 0; i < 6; i++)
+        materialArray.push(new THREE.MeshBasicMaterial({
+            map: THREE.ImageUtils.loadTexture(path + images[i] + format),
+            side: THREE.BackSide
+        }));
+    var material = new THREE.MeshFaceMaterial(materialArray);
+    var skyBox = new THREE.Mesh(geometry, material);
+    this.scene.add(skyBox);
+
+};
+
+GFX.Scene.prototype.setupStats = function(container) {
+    var pos = 0;
+
+    if (this.displayStats === true || this.displayStats.indexOf("fps") !== -1) {
+        this.fpStats = new Stats();
+        this.fpStats.showPanel(0);
+        this.fpStats.dom.style.left = pos + 'px';
+        pos += 80;
+        container.appendChild( this.fpStats.dom );
+    }
+
+    if (typeof this.displayStats === 'string' && this.displayStats.indexOf("ms") !== -1) {
+        this.msStats = new Stats();
+        this.msStats.showPanel(1);
+        //this.msStats.domElement.style.position = 'absolute';
+        //this.msStats.domElement.style.bottom = '0px';
+        this.msStats.dom.style.left = pos + 'px';
+        pos += 80;
+        //this.msStats.domElement.style.zIndex = 100;
+        container.appendChild( this.msStats.dom );
+    }
+
+    if (typeof this.displayStats === 'string' && this.displayStats.indexOf("mb") !== -1) {
+        this.mbStats = new Stats();
+        this.mbStats.showPanel(2);
+        this.mbStats.dom.style.left = pos + '80px';
+        container.appendChild( this.mbStats.dom );
+    }
+};
+
+GFX.Scene.prototype.updateStats = function() {
+    if (this.fpStats !== null && typeof this.fpStats !== 'undefined')
+        this.fpStats.update();
+    if (this.msStats !== null && typeof this.msStats !== 'undefined')
+        this.msStats.update();
+    if (this.mbStats !== null && typeof this.mbStats !== 'undefined')
+        this.mbStats.update();
 };

@@ -1,13 +1,14 @@
 /**
+ * Adapted from:
  * @author qiao / https://github.com/qiao
  * @author mrdoob / http://mrdoob.com
  * @author alteredq / http://alteredqualia.com/
  * @author WestLangley / http://github.com/WestLangley
  */
 
-// Dict of key states
+// dict of key states to hold persistent key press info
 keyStates = {};
-// Only pay attention to standard ASCII keys
+// only pay attention to standard ASCII keys
 for (var i = 32; i < 128; i++) {
     var c = String.fromCharCode(i);
     console.log('key ' + i + ': ' + c);
@@ -18,17 +19,15 @@ keyStates['arrowleft'] = false;
 keyStates['arrowup'] = false;
 keyStates['arrowdown'] = false;
 keyStates['control'] = false;
+keyStates['alt'] = false;
+keyStates['shift'] = false;
 
 THREE.OrbitControls = function(camera, domElement) {
 
     this.camera = camera;
-    this.domElement = (domElement !== undefined) ? domElement : document;
-
-    // API
+    // this.domElement = (domElement !== undefined) ? domElement : document;
 
     this.enabled = true;
-
-    this.center = new THREE.Vector3();
 
     this.userZoomSpeed = 1.0;
     this.userRotateSpeed = 0.01;
@@ -43,7 +42,7 @@ THREE.OrbitControls = function(camera, domElement) {
     this.horizontalAngle = this.horizontalAngle0;
     this.verticalAngle = this.verticalAngle0;
 
-    // update heading information
+    // update heading
     this.heading = new THREE.Vector3(
         Math.cos(this.horizontalAngle) * Math.sin(this.verticalAngle),
         Math.sin(this.horizontalAngle) * Math.sin(this.verticalAngle),
@@ -59,9 +58,7 @@ THREE.OrbitControls = function(camera, domElement) {
     this.up = new THREE.Vector3(0.0, 0.0, 0.0);
     this.up.crossVectors(this.right, this.heading);
 
-    // internals
     this.EPS = 0.000001;
-    this.PIXELS_PER_ROUND = 1800;
 
     // events
     window.addEventListener('keydown', onKeyDown, false);
@@ -95,9 +92,15 @@ THREE.OrbitControls.prototype.moveBackward = function(distance) {
 };
 THREE.OrbitControls.prototype.rotateUp = function(rotationAngle) {
     this.verticalAngle -= rotationAngle; // we're in standard spherical coords
+    if (this.verticalAngle < 0) {
+        this.verticalAngle = 0;
+    }
 };
 THREE.OrbitControls.prototype.rotateDown = function(rotationAngle) {
     this.verticalAngle += rotationAngle;
+    if (this.verticalAngle > Math.PI) {
+        this.verticalAngle = Math.PI;
+    }
 };
 THREE.OrbitControls.prototype.rotateRight = function(rotationAngle) {
     this.horizontalAngle -= rotationAngle;
@@ -140,7 +143,6 @@ THREE.OrbitControls.prototype.update = function () {
 
 };
 
-
 THREE.OrbitControls.prototype.handleKeys = function() {
     // move right
     if (keyStates['arrowright']) {
@@ -151,19 +153,19 @@ THREE.OrbitControls.prototype.handleKeys = function() {
         this.moveLeft(this.userPanSpeed);
     }
     // move up
-    if (keyStates['arrowup'] && keyStates['control']) {
+    if (keyStates['arrowup'] && keyStates['shift']) {
         this.moveUp(this.userPanSpeed);
     }
     // move down
-    if (keyStates['arrowdown'] && keyStates['control']) {
+    if (keyStates['arrowdown'] && keyStates['shift']) {
         this.moveDown(this.userPanSpeed);
     }
     // move forward
-    if (keyStates['arrowup'] && !keyStates['control']) {
+    if (keyStates['arrowup'] && !keyStates['shift']) {
         this.moveForward(this.userPanSpeed);
     }
     // move backward
-    if (keyStates['arrowdown'] && !keyStates['control']) {
+    if (keyStates['arrowdown'] && !keyStates['shift']) {
         this.moveBackward(this.userPanSpeed);
     }
     // rotate up
