@@ -11,7 +11,7 @@ keyStates = {};
 // only pay attention to standard ASCII keys
 for (var i = 32; i < 128; i++) {
     var c = String.fromCharCode(i);
-    console.log('key ' + i + ': ' + c);
+    // console.log('key ' + i + ': ' + c);
     keyStates[c] = false;
 }
 keyStates['arrowright'] = false;
@@ -34,7 +34,11 @@ THREE.OrbitControls = function(camera, domElement) {
     this.userPanSpeed = 0.1;
 
     // start near origin facing along y-axis
-    this.position0 = new THREE.Vector3(-20, 0, 0);
+    this.position0 = new THREE.Vector3(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z);
+    camera.look
     this.horizontalAngle0 = 0.0;
     this.verticalAngle0 = Math.PI / 2;
 

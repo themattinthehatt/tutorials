@@ -45,7 +45,7 @@ GFX.Scene = function(parameters) {
     this.hemisphereLights = [];
     this.spotLights = [];
     this.shadowMapEnabled = false;
-    this.skybox = true;
+    this.skybox = false;
 
     // axes
     this.axesHeight = 0;
@@ -279,9 +279,9 @@ GFX.Scene.prototype.addCamera = function (jsonObj, index) {
         camera = new THREE.OrthographicCamera( -w2, w2, h2, -h2, 0.01, 1000);
     }
 
-    camera.updateProjectionMatrix();
     camera.position.set(cameraPos[0], cameraPos[1], cameraPos[2]);
     camera.lookAt(this.scene.position);
+    camera.updateProjectionMatrix();
 
     if (index === undefined)
         this.cameras.push(camera);
