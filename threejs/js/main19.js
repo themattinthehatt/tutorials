@@ -17,10 +17,11 @@ var PARTICLE_COUNT = 500;
 var ELEV = 25;
 var DELTA_ELEV = 10;
 var FLOOR_REPEAT = 5;
+var DISTRIBX = 20;
+var DISTRIBY = 20;
 var clock;
 var particleSystem;
 var cannon = null; // texture, paint or wire
-var beachBall = null;
 
 // Initialize the demo
 initializeDemo();
@@ -50,6 +51,15 @@ function initializeDemo(){
     // create particle system
     particleSystem = createParticleSystem(PARTICLE_COUNT);
     scene.add(particleSystem);
+
+    // create cannon and ball system
+    cannon = new CANNON.Cannon({
+        scene: scene,
+        deltaT: 0.05,
+        xLimit: FLOOR_REPEAT,
+        yLimit: FLOOR_REPEAT
+    });
+    scene.add(cannon.mesh);
 }
 
 function addFloor() {
@@ -75,8 +85,6 @@ function createParticleSystem(particle_count) {
     // the 'particles'
     var particles = new THREE.Geometry();
     // create the vertices and add them to the particle's geometry
-    var DISTRIBX = 20;
-    var DISTRIBY = 20;
     for (var p = 0; p < particle_count; p++) {
         var z = Math.random() * ELEV - DELTA_ELEV;
         var x = Math.random() * DISTRIBX - FLOOR_REPEAT * 2;
@@ -96,10 +104,36 @@ function createParticleSystem(particle_count) {
     return particleSystem;
 }
 
+function animateParticles() {
+    var deltaTime = clock.getDelta();
+    var verts = particleSystem.geometry.vertices;
+
+    for (var i = 0; i < verts.length; i++) {
+        var vert = verts[i];
+        if (vert.z < -10) {
+            vert.z = Math.random() * ELEV - DELTA_ELEV;
+            vert.x = Math.random() * DISTRIBX - FLOOR_REPEAT * 2;
+            vert.y = Math.random() * DISTRIBY - FLOOR_REPEAT * 2;
+        }
+        vert.z = vert.z - deltaTime;
+    }
+    particleSystem.geometry.verticesNeedUpdate = true;
+}
+
 /**
  * Animate the scene and call rendering.
  */
 function animateScene(){
+
+    // let particles fall
+    animateParticles();
+
+    // update cannon
+    cannon.update();
+    cannon.updateBalls();
+    // console.log(cannon.active.length);
+    // console.log(cannon.magazine.length);
+
     // Define the function, which is called by the browser supported timer loop. If the
     // browser tab is not visible, the animation is paused. So 'animateScene()' is called
     // in a browser controlled loop.

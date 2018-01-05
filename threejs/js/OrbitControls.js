@@ -38,7 +38,6 @@ THREE.OrbitControls = function(camera, domElement) {
         camera.position.x,
         camera.position.y,
         camera.position.z);
-    camera.look
     this.horizontalAngle0 = 0.0;
     this.verticalAngle0 = Math.PI / 2;
 
