@@ -1,13 +1,17 @@
 /**
- * http://htmlpreview.github.com/?https://github.com/themattinthehatt/tutorials/blob/master/index.html
+ * http://htmlpreview.github.com/?https://github.com/themattinthehatt/tutorials/blob/master/threejs/tutorial08.html
  * TODO
  * Good parameter settings (5000 particles):
  * p = 3; q = 2; mass = 0.1; exponent = 0.2; speed = 0.92
+ * p = 3; q = 2; mass = 0.1; exponent = 0.2; speed = 0.01
  */
 
-var SHOW_TORUS = true;
+var SHOW_TORUS = false;
 var P_INIT = 3.0;
 var Q_INIT = 2.0;
+var MASS = 0.1;
+var EXPONENT = 0.2;
+var SPEED = 0.92;
 var gui;
 var options = setupDatGUI();
 
@@ -21,7 +25,7 @@ var scene = new GFX.Scene({
 });
 
 // particle dynamics info
-var PARTICLE_COUNT = 5000;
+var PARTICLE_COUNT = 100000;
 var particleSystem;
 var loc = [];
 var vel = [];
@@ -30,12 +34,13 @@ var color = [];
 
 // particle initialization info
 var ELEV = 25;
+var INIT_SHAPE = 'sphere';
 
 // gravity info
 var gravCenter;
 // torus knot parameters
 var phi;
-var RADIUS = 20.0;
+var RADIUS = 10.0; // 20.0
 var radius = 2.0;
 var r;
 
@@ -75,9 +80,17 @@ function createParticleSystem() {
     var particles = new THREE.Geometry();
     // create the vertices and add them to the particle's geometry
     for (var i = 0; i < PARTICLE_COUNT; i++) {
-        var z = Math.random() * ELEV - ELEV / 2.0;
-        var x = 2.0 * Math.random() * RADIUS - RADIUS;
-        var y = 2.0 * Math.random() * RADIUS - RADIUS;
+        if (INIT_SHAPE === 'box') {
+            var z = 2.0 * Math.random() * RADIUS - RADIUS;
+            var x = 2.0 * Math.random() * RADIUS - RADIUS;
+            var y = 2.0 * Math.random() * RADIUS - RADIUS;
+        } else if (INIT_SHAPE === 'sphere') {
+            var phi = Math.random() * Math.PI;
+            var theta = Math.random() * 2.0 * Math.PI;
+            var z = RADIUS * Math.cos(phi);
+            var x = RADIUS * Math.sin(phi) * Math.cos(theta);
+            var y = RADIUS * Math.sin(phi) * Math.sin(theta);
+        }
 
         var particle = new THREE.Vector3(x, y, z);
         particles.vertices.push(particle);
@@ -98,7 +111,6 @@ function createParticleSystem() {
     var particleMaterial = new THREE.PointsMaterial({
         vertexColors: THREE.VertexColors,
         size: 0.4,
-        map: THREE.ImageUtils.loadTexture('images/snowflake.png'),
         transparent: true
     });
     particleSystem = new THREE.Points(particles, particleMaterial);
@@ -185,7 +197,6 @@ function animateParticles() {
 
         // if (vel[i].length() > maxLen) {maxLen = vel[i].length()}
     }
-    console.log(maxLen);
     particleSystem.geometry.verticesNeedUpdate = true;
     particleSystem.geometry.colorsNeedUpdate = true;
 }
@@ -193,9 +204,17 @@ function animateParticles() {
 function resetParticles() {
     for (var i = 0; i < PARTICLE_COUNT; i++) {
         // randomly initialize position
-        var z = Math.random() * ELEV - ELEV / 2.0;
-        var x = 2.0 * Math.random() * RADIUS - RADIUS;
-        var y = 2.0 * Math.random() * RADIUS - RADIUS;
+        if (INIT_SHAPE === 'box') {
+            var z = 2.0 * Math.random() * RADIUS - RADIUS;
+            var x = 2.0 * Math.random() * RADIUS - RADIUS;
+            var y = 2.0 * Math.random() * RADIUS - RADIUS;
+        } else if (INIT_SHAPE === 'sphere') {
+            var phi = Math.random() * Math.PI;
+            var theta = Math.random() * 2.0 * Math.PI;
+            var z = RADIUS * Math.cos(phi);
+            var x = RADIUS * Math.sin(phi) * Math.cos(theta);
+            var y = RADIUS * Math.sin(phi) * Math.sin(theta);
+        }
         // reset particle location/velocity/acceleration
         particleSystem.geometry.vertices[i].set(x, y, z);
         loc[i].set(x, y, z);
@@ -216,9 +235,9 @@ function setupDatGUI() {
     options.p = P_INIT;
     var qList = [1, 2, 3, 4, 5];
     options.q = Q_INIT;
-    options.mass = 0.1;
-    options.exponent = 2.0;
-    options.speed = 0.1;
+    options.mass = MASS;
+    options.exponent = EXPONENT;
+    options.speed = SPEED;
     options.reset = function() {resetParticles()};
 
     gui = new dat.GUI();
