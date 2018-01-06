@@ -4,6 +4,9 @@
  * @author mrdoob / http://mrdoob.com
  * @author alteredq / http://alteredqualia.com/
  * @author WestLangley / http://github.com/WestLangley
+ *
+ * TODO
+ * add variable speed for rotational/translational movement
  */
 
 // dict of key states to hold persistent key press info
