@@ -61,6 +61,8 @@ THREE.OrbitControls = function(camera, domElement) {
     this.up = new THREE.Vector3(0.0, 0.0, 0.0);
     this.up.crossVectors(this.right, this.heading);
 
+    this.EPS = 0.000001;
+
     // events
     window.addEventListener('keydown', onKeyDown, false);
     window.addEventListener('keyup', onKeyUp, false);
@@ -136,9 +138,9 @@ THREE.OrbitControls.prototype.update = function () {
 
     // if ( this.lastPosition.distanceTo( this.camera.position ) > 0 ) {
     //
-        // this.dispatchEvent( this.changeEvent );
-        //
-        // this.lastPosition.copy( this.camera.position );
+    // this.dispatchEvent( this.changeEvent );
+    //
+    // this.lastPosition.copy( this.camera.position );
     //
     // }
 

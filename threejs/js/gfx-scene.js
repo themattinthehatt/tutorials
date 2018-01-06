@@ -28,7 +28,7 @@ GFX.Scene = function(parameters) {
     this.camera = undefined;
     this.perspective = true;
     this.fov = 45;
-    this.near = 0.01;
+    this.near = 0.5; //0.01;
     this.far = 10000;
     this.cameraPos = [0, 20, 40];
     this.orthoSize = 1;
@@ -36,6 +36,7 @@ GFX.Scene = function(parameters) {
     // camera controls
     this.controls = false;
     this.orbitControls = [];
+    this.trackControls = [];
 
     // lighting
     this.defaultLights = true;
