@@ -281,8 +281,8 @@ function setupDatGUI() {
     gui.add(options, 'mass', 0.0, 1.0);
     gui.add(options, 'exponent', 0.1, 5.0);
     gui.add(options, 'speed', 0.0, 5.0);
-    gui.add(options, 'decay', 0.9, 1.0);
     gui.add(options, 'reset');
+    gui.add(options, 'decay', 0.9, 1.0);
 
     return options;
 }
