@@ -4,6 +4,7 @@
  * Good parameter settings (5000 particles):
  * p = 3; q = 2; mass = 0.1; exponent = 0.2; speed = 0.92
  * p = 3; q = 2; mass = 0.1; exponent = 0.2; speed = 0.01
+ * p = 3; q = 2; mass = 0.62; exponent = 0.57; speed = 0.54
  */
 
 var SHOW_TORUS = false;
@@ -27,10 +28,12 @@ var scene = new GFX.Scene({
 // particle dynamics info
 var PARTICLE_COUNT = 100000;
 var particleSystem;
+var loc_og = [];
 var loc = [];
 var vel = [];
 var acc = [];
 var color = [];
+var maxLen = 5.0;
 
 // particle initialization info
 var ELEV = 25;
@@ -94,6 +97,7 @@ function createParticleSystem() {
 
         var particle = new THREE.Vector3(x, y, z);
         particles.vertices.push(particle);
+        loc_og.push(new THREE.Vector3(x, y, z));
         loc.push(particle);
         vel.push(new THREE.Vector3(0, 0, 0));
         acc.push(new THREE.Vector3(0, 0, 0));
@@ -166,7 +170,7 @@ function updateGravity() {
 }
 
 function animateParticles() {
-    var maxLen = 0.0;
+    var maxLenNew = 0.0;
     // NEW WAY
     // var deltaT = 1.0; //clock.getDelta();
     var verts = particleSystem.geometry.vertices;
@@ -182,21 +186,33 @@ function animateParticles() {
         }
         acc[i].add(force);
         vel[i].add(acc[i]);
+        // loc[i].add(vel[i]).multiplyScalar(options.decay);
         loc[i].add(vel[i]);
+
+        // scale position between current location and original location
+        // var diff = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], loc[i]);
+        loc[i].set(
+            options.decay * loc[i].x + (1.0 - options.decay) * loc_og[i].x,
+            options.decay * loc[i].y + (1.0 - options.decay) * loc_og[i].y,
+            options.decay * loc[i].z + (1.0 - options.decay) * loc_og[i].z
+        );
+
         verts[i].set(loc[i].x, loc[i].y, loc[i].z);
         acc[i].multiplyScalar(0.0); // clear out acceleration
 
         // set color based on velocity
-        var speed = vel[i].length() / 5.0;
-        if (speed < 0.5) {
+        var speed = vel[i].length();
+        var speedScaled = speed / (maxLen * 1.2);
+        if (speedScaled < 0.5) {
             // move color from red to yellow
-            cols[i].setHSL(speed * 0.32, 1, 0.5);
+            cols[i].setHSL(speedScaled * 0.32, 1, 0.5);
         } else {
-            cols[i].setHSL(0.16, 1, 0.5 + speed);
+            // move color from yellow to white
+            cols[i].setHSL(0.16, 1, speedScaled);
         }
-
-        // if (vel[i].length() > maxLen) {maxLen = vel[i].length()}
+        if (speed > maxLenNew) {maxLenNew = speed}
     }
+    maxLen = 0.95 * maxLen + 0.05 * maxLenNew;
     particleSystem.geometry.verticesNeedUpdate = true;
     particleSystem.geometry.colorsNeedUpdate = true;
 }
@@ -238,6 +254,7 @@ function setupDatGUI() {
     options.mass = MASS;
     options.exponent = EXPONENT;
     options.speed = SPEED;
+    options.decay = 1.0;
     options.reset = function() {resetParticles()};
 
     gui = new dat.GUI();
@@ -261,9 +278,10 @@ function setupDatGUI() {
             addTorusKnot();
         }
     });
-    gui.add(options, 'mass', 0.1, 10.0);
+    gui.add(options, 'mass', 0.0, 1.0);
     gui.add(options, 'exponent', 0.1, 5.0);
-    gui.add(options, 'speed', 0.01, 5.0);
+    gui.add(options, 'speed', 0.0, 5.0);
+    gui.add(options, 'decay', 0.9, 1.0);
     gui.add(options, 'reset');
 
     return options;
