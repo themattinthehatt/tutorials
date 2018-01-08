@@ -13,6 +13,7 @@ var Q_INIT = 2.0;
 var MASS = 0.1;
 var EXPONENT = 0.2;
 var SPEED = 0.92;
+var USE_CONTROLLER = true;
 var gui;
 var options = setupDatGUI();
 
@@ -36,8 +37,14 @@ var color = [];
 var maxLen = 5.0;
 
 // particle initialization info
-var ELEV = 25;
 var INIT_SHAPE = 'sphere';
+
+// dynamics controller
+
+var frameCount = 0;
+var freeFrames = 400;
+var regFrames = 100;
+var frac = 0.4; // perceptually nice setting
 
 // gravity info
 var gravCenter;
@@ -170,32 +177,79 @@ function updateGravity() {
 }
 
 function animateParticles() {
+
+    if (options.useController) {
+        if (frameCount > freeFrames) {
+            if (frameCount < (freeFrames + regFrames * frac)) {
+                // first 80% of coalescence; go as sqrt (slow)
+                options.decay =
+                    Math.sqrt(1.0 - (frameCount - freeFrames) / regFrames / 5.0);
+                currDecay = options.decay;
+            } else {
+                // last 20% of coalescence; go as linear (fast)
+                options.decay = currDecay *
+                    (1.0 - (frameCount - freeFrames - regFrames * frac) /
+                        (regFrames * (1.0 - frac)));
+            }
+
+            // options.decay = Math.sqrt(1.0 - (frameCount - freeFrames) / regFrames);
+        }
+        if (frameCount === (freeFrames + regFrames)) {
+            frameCount = 0;
+            options.decay = 1.0;
+            maxLen = 5.0;
+        } else {
+            frameCount += 1;
+        }
+        // options.decay = 0.5 + 0.5 * Math.cos(0.1 * clock.getElapsedTime());
+    }
+
     var maxLenNew = 0.0;
-    // NEW WAY
     // var deltaT = 1.0; //clock.getDelta();
     var verts = particleSystem.geometry.vertices;
     var cols = particleSystem.geometry.colors;
     for (var i = 0; i < verts.length; i++) {
+
+        // gravitational force
         var force = new THREE.Vector3(0, 0, 0).subVectors(gravCenter, verts[i]);
         var len = force.length();
-        if (len > 0.05) {
-            force.normalize().multiplyScalar(
-                options.mass / (Math.pow(len, options.exponent)));
-        } else {
-            force.multiplyScalar(0.0);
-        }
+        force.normalize().multiplyScalar(
+            options.mass / (Math.pow(len, options.exponent)));
+
+        // regularization force (like gravity for now)
+        // var forceReg = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], verts[i]);
+        // var lenReg = forceReg.length();
+        // forceReg.normalize().multiplyScalar(
+        //     options.decay / Math.pow(lenReg, 2.0)
+        // );
+
+        // update dynamics
         acc[i].add(force);
+        // if (options.decay > 0 && lenReg > 0.01) {
+        //     acc[i].add(forceReg);
+        // }
         vel[i].add(acc[i]);
-        // loc[i].add(vel[i]).multiplyScalar(options.decay);
-        loc[i].add(vel[i]);
+        if (vel[i].length() > len) {
+            loc[i].add(len);
+            vel[i].multiplyScalar(0.0);
+        } else {
+            loc[i].add(vel[i]);
+        }
+
+        // doesn't get holes as easily this way
+        // loc[i].add(vel[i]);
 
         // scale position between current location and original location
-        // var diff = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], loc[i]);
         loc[i].set(
             options.decay * loc[i].x + (1.0 - options.decay) * loc_og[i].x,
             options.decay * loc[i].y + (1.0 - options.decay) * loc_og[i].y,
             options.decay * loc[i].z + (1.0 - options.decay) * loc_og[i].z
         );
+        vel[i].multiplyScalar(options.decay);
+        if (options.useController && (frameCount === 0)) {
+            loc[i].set(loc_og[i].x, loc_og[i].y, loc_og[i].z);
+            vel[i].multiplyScalar(0.0);
+        }
 
         verts[i].set(loc[i].x, loc[i].y, loc[i].z);
         acc[i].multiplyScalar(0.0); // clear out acceleration
@@ -254,8 +308,9 @@ function setupDatGUI() {
     options.mass = MASS;
     options.exponent = EXPONENT;
     options.speed = SPEED;
-    options.decay = 1.0;
+    options.useController = USE_CONTROLLER;
     options.reset = function() {resetParticles()};
+    options.decay = 1.0;
 
     gui = new dat.GUI();
 
@@ -282,7 +337,14 @@ function setupDatGUI() {
     gui.add(options, 'exponent', 0.1, 5.0);
     gui.add(options, 'speed', 0.0, 5.0);
     gui.add(options, 'reset');
-    gui.add(options, 'decay', 0.9, 1.0);
+    // gui.add(options, 'decay', 0.0, 1.0);
+    gui.add(options, 'useController').onChange(function() {
+        if (options.useController) {
+            frameCount = 0.0;
+        } else {
+            options.decay = 1.0;
+        }
+    });
 
     return options;
 }
