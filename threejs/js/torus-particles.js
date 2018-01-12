@@ -8,12 +8,13 @@
  */
 
 var SHOW_TORUS = false;
+var CHANGE_COLOR = false;
+var USE_CONTROLLER = true;
 var P_INIT = 3.0;
 var Q_INIT = 2.0;
 var MASS = 0.1;
 var EXPONENT = 0.2;
 var SPEED = 0.92;
-var USE_CONTROLLER = true;
 var gui;
 var options = setupDatGUI();
 
@@ -40,17 +41,19 @@ var maxLen = 5.0;
 var INIT_SHAPE = 'sphere';
 
 // dynamics controller
-
+var currDecay = 1.0;
+var animateFlag = true;
 var frameCount = 0;
-var freeFrames = 400;
+var stillFrames = 0;
+var freeFrames = 300;
 var regFrames = 100;
-var frac = 0.4; // perceptually nice setting
+var frac = 0.5; // perceptually nice setting
 
 // gravity info
 var gravCenter;
 // torus knot parameters
 var phi;
-var RADIUS = 10.0; // 20.0
+var RADIUS = 20.0; // 20.0
 var radius = 2.0;
 var r;
 
@@ -122,7 +125,8 @@ function createParticleSystem() {
     var particleMaterial = new THREE.PointsMaterial({
         vertexColors: THREE.VertexColors,
         size: 0.4,
-        transparent: true
+        transparent: true,
+        sizeAttenuation: false
     });
     particleSystem = new THREE.Points(particles, particleMaterial);
     return particleSystem;
@@ -153,15 +157,16 @@ function updateGravity() {
 
     var p = options.p;
     var q = options.q;
+    var mult = 1.0; // 0.5 to correspond to TorusKnotGeometry
 
     phi = options.speed * clock.getElapsedTime();
     // var cu = Math.cos(phi);
     // var su = Math.sin(phi);
     // var qOverP = q / p * phi;
     r = 2.0 + Math.cos(q * phi);
-    gravCenter.x = RADIUS * r * 0.5 * Math.cos(p * phi);
-    gravCenter.y = RADIUS * r * 0.5 * Math.sin(p * phi);
-    gravCenter.z = 0.5 * RADIUS * Math.sin(q * phi);
+    gravCenter.x = mult * RADIUS * r * Math.cos(p * phi);
+    gravCenter.y = mult * RADIUS * r * Math.sin(p * phi);
+    gravCenter.z = mult * RADIUS * Math.sin(q * phi);
 
     // update camera
     // update heading information - tangent of curve
@@ -179,96 +184,112 @@ function updateGravity() {
 function animateParticles() {
 
     if (options.useController) {
-        if (frameCount > freeFrames) {
-            if (frameCount < (freeFrames + regFrames * frac)) {
+        if (frameCount > freeFrames + stillFrames) {
+            animateFlag = true;
+            if (frameCount < (stillFrames + freeFrames + regFrames * frac)) {
                 // first 80% of coalescence; go as sqrt (slow)
                 options.decay =
-                    Math.sqrt(1.0 - (frameCount - freeFrames) / regFrames / 5.0);
+                    Math.sqrt(1.0 - (frameCount - freeFrames - stillFrames) / regFrames / 5.0);
                 currDecay = options.decay;
             } else {
                 // last 20% of coalescence; go as linear (fast)
                 options.decay = currDecay *
-                    (1.0 - (frameCount - freeFrames - regFrames * frac) /
+                    (1.0 - (frameCount - freeFrames - regFrames * frac - stillFrames) /
                         (regFrames * (1.0 - frac)));
             }
 
             // options.decay = Math.sqrt(1.0 - (frameCount - freeFrames) / regFrames);
+        } else if (frameCount < stillFrames) {
+            animateFlag = false;
+        } else {
+            animateFlag = true;
         }
-        if (frameCount === (freeFrames + regFrames)) {
-            frameCount = 0;
-            options.decay = 1.0;
-            maxLen = 5.0;
+        if (frameCount === (stillFrames + freeFrames + regFrames)) {
+            resetController();
         } else {
             frameCount += 1;
         }
         // options.decay = 0.5 + 0.5 * Math.cos(0.1 * clock.getElapsedTime());
     }
 
-    var maxLenNew = 0.0;
-    // var deltaT = 1.0; //clock.getDelta();
-    var verts = particleSystem.geometry.vertices;
-    var cols = particleSystem.geometry.colors;
-    for (var i = 0; i < verts.length; i++) {
-
-        // gravitational force
-        var force = new THREE.Vector3(0, 0, 0).subVectors(gravCenter, verts[i]);
-        var len = force.length();
-        force.normalize().multiplyScalar(
-            options.mass / (Math.pow(len, options.exponent)));
-
-        // regularization force (like gravity for now)
-        // var forceReg = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], verts[i]);
-        // var lenReg = forceReg.length();
-        // forceReg.normalize().multiplyScalar(
-        //     options.decay / Math.pow(lenReg, 2.0)
-        // );
-
-        // update dynamics
-        acc[i].add(force);
-        // if (options.decay > 0 && lenReg > 0.01) {
-        //     acc[i].add(forceReg);
-        // }
-        vel[i].add(acc[i]);
-        if (vel[i].length() > len) {
-            loc[i].add(len);
-            vel[i].multiplyScalar(0.0);
-        } else {
-            loc[i].add(vel[i]);
+    if (animateFlag) {
+        var maxLenNew = 0.0;
+        // var deltaT = 1.0; //clock.getDelta();
+        var verts = particleSystem.geometry.vertices;
+        var cols = particleSystem.geometry.colors;
+        var colorTrans = 0.16;
+        var colorInit = 0.0;
+        if (options.changeColor) {
+            colorInit = 0.5 + 0.5 * Math.cos(0.05 * clock.getElapsedTime());
         }
+        var temp = 0.0;
+        for (var i = 0; i < verts.length; i++) {
 
-        // doesn't get holes as easily this way
-        // loc[i].add(vel[i]);
+            // gravitational force
+            var force = new THREE.Vector3(0, 0, 0).subVectors(gravCenter, verts[i]);
+            var len = force.length();
+            force.normalize().multiplyScalar(
+                options.mass / (Math.pow(len, options.exponent)));
 
-        // scale position between current location and original location
-        loc[i].set(
-            options.decay * loc[i].x + (1.0 - options.decay) * loc_og[i].x,
-            options.decay * loc[i].y + (1.0 - options.decay) * loc_og[i].y,
-            options.decay * loc[i].z + (1.0 - options.decay) * loc_og[i].z
-        );
-        vel[i].multiplyScalar(options.decay);
-        if (options.useController && (frameCount === 0)) {
-            loc[i].set(loc_og[i].x, loc_og[i].y, loc_og[i].z);
-            vel[i].multiplyScalar(0.0);
+            // regularization force (like gravity for now)
+            // acc += -a*v - k*x
+            // var forceReg = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], verts[i]);
+            // var lenReg = forceReg.length();
+            // forceReg.normalize().multiplyScalar(
+            //     options.decay / Math.pow(lenReg, 2.0)
+            // );
+
+            // update dynamics
+            acc[i].add(force);
+            // if (options.decay > 0 && lenReg > 0.01) {
+            //     acc[i].add(forceReg);
+            // }
+            vel[i].add(acc[i]);
+            if (vel[i].length() > len) {
+                loc[i].add(len);
+                vel[i].multiplyScalar(0.0);
+            } else {
+                loc[i].add(vel[i]);
+            }
+
+            // doesn't get holes as easily this way
+            // loc[i].add(vel[i]);
+
+            // scale position between current location and original location
+            loc[i].set(
+                options.decay * loc[i].x + (1.0 - options.decay) * loc_og[i].x,
+                options.decay * loc[i].y + (1.0 - options.decay) * loc_og[i].y,
+                options.decay * loc[i].z + (1.0 - options.decay) * loc_og[i].z
+            );
+            vel[i].multiplyScalar(options.decay);
+            if (options.useController && (frameCount === 0)) {
+                loc[i].set(loc_og[i].x, loc_og[i].y, loc_og[i].z);
+                vel[i].multiplyScalar(0.0);
+            }
+
+            verts[i].set(loc[i].x, loc[i].y, loc[i].z);
+            acc[i].multiplyScalar(0.0); // clear out acceleration
+
+            // set color based on velocity
+            var speed = vel[i].length();
+            var speedScaled = speed / (maxLen * 1.2);
+            if (speedScaled < 0.5) {
+                // move color from red to yellow
+                temp = colorInit + speedScaled * 2.0 * colorTrans;
+                cols[i].setHSL(temp - Math.floor(temp), 1, 0.5);
+            } else {
+                // move color from yellow to white
+                temp = colorInit + colorTrans;
+                cols[i].setHSL(temp - Math.floor(temp), 1, speedScaled);
+            }
+            if (speed > maxLenNew) {
+                maxLenNew = speed
+            }
         }
-
-        verts[i].set(loc[i].x, loc[i].y, loc[i].z);
-        acc[i].multiplyScalar(0.0); // clear out acceleration
-
-        // set color based on velocity
-        var speed = vel[i].length();
-        var speedScaled = speed / (maxLen * 1.2);
-        if (speedScaled < 0.5) {
-            // move color from red to yellow
-            cols[i].setHSL(speedScaled * 0.32, 1, 0.5);
-        } else {
-            // move color from yellow to white
-            cols[i].setHSL(0.16, 1, speedScaled);
-        }
-        if (speed > maxLenNew) {maxLenNew = speed}
+        maxLen = 0.95 * maxLen + 0.05 * maxLenNew;
+        particleSystem.geometry.verticesNeedUpdate = true;
+        particleSystem.geometry.colorsNeedUpdate = true;
     }
-    maxLen = 0.95 * maxLen + 0.05 * maxLenNew;
-    particleSystem.geometry.verticesNeedUpdate = true;
-    particleSystem.geometry.colorsNeedUpdate = true;
 }
 
 function resetParticles() {
@@ -293,6 +314,11 @@ function resetParticles() {
     }
 }
 
+function resetController() {
+    frameCount = 0;
+    options.decay = 1.0;
+    maxLen = 5.0;
+}
 /**
  * Specify parameters and user interface
  */
@@ -301,6 +327,8 @@ function setupDatGUI() {
     var options = [];
 
     options.torus = SHOW_TORUS;
+    options.useController = USE_CONTROLLER;
+    options.changeColor = CHANGE_COLOR;
     var pList = [1, 2, 3, 4, 5];
     options.p = P_INIT;
     var qList = [1, 2, 3, 4, 5];
@@ -308,7 +336,6 @@ function setupDatGUI() {
     options.mass = MASS;
     options.exponent = EXPONENT;
     options.speed = SPEED;
-    options.useController = USE_CONTROLLER;
     options.reset = function() {resetParticles()};
     options.decay = 1.0;
 
@@ -321,6 +348,14 @@ function setupDatGUI() {
            removeTorusKnot();
        }
     });
+    gui.add(options, 'useController').onChange(function() {
+        if (options.useController) {
+            frameCount = 0.0;
+        } else {
+            options.decay = 1.0;
+        }
+    });
+    gui.add(options, 'changeColor');
     gui.add(options, 'p', pList).onChange(function() {
         if (options.torus) {
             removeTorusKnot();
@@ -338,13 +373,7 @@ function setupDatGUI() {
     gui.add(options, 'speed', 0.0, 5.0);
     gui.add(options, 'reset');
     // gui.add(options, 'decay', 0.0, 1.0);
-    gui.add(options, 'useController').onChange(function() {
-        if (options.useController) {
-            frameCount = 0.0;
-        } else {
-            options.decay = 1.0;
-        }
-    });
+
 
     return options;
 }
