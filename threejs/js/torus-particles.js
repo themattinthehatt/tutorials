@@ -1,80 +1,84 @@
 /**
- * http://htmlpreview.github.com/?https://github.com/themattinthehatt/tutorials/blob/master/threejs/tutorial08.html
- * TODO
- * Good parameter settings (5000 particles):
+ * torus-particles is a gravitational particle simulation. A point mass that 
+ * moves around a torus knot provides the gravitational force that drives the 
+ * dynamics of the particles, which do *not* interact with each other. An 
+ * additional spring force acts to bring each particle back to its initial 
+ * position
+ * 
+ * Good parameter settings:
  * p = 3; q = 2; mass = 0.1; exponent = 0.2; speed = 0.92
  * p = 3; q = 2; mass = 0.1; exponent = 0.2; speed = 0.01
  * p = 3; q = 2; mass = 0.62; exponent = 0.57; speed = 0.54
  */
 
-var SHOW_TORUS = false;
-var CHANGE_COLOR = false;
-var USE_CONTROLLER = true;
-var P_INIT = 3.0;
-var Q_INIT = 2.0;
-var MASS = 0.1;
-var EXPONENT = 0.1;
-var SPEED = 0.92;
-var DAMP_VEL_PARAM = 0.0;
-var DAMP_POS_PARAM = 0.0;
+// user parameters - gravitational force
+var SHOW_TORUS = false;     // display torus knot that center of mass follows
+var P_INIT = 3.0;           // parameter 1 for torus knot
+var Q_INIT = 2.0;           // parameter 2 for torus knot
+var MASS = 0.1;             // gravitational mass
+var EXPONENT = 0.1;         // exponent on gravitational-like force law
+var SPEED = 0.92;           // speed that mass travels around torus knot
+
+// user parameters - spring force
+var DAMP_VEL_PARAM = 0.0;   // coefficient of speed damping for spring force
+var DAMP_POS_PARAM = 0.0;   // spring coefficient
+
+// user parameters - particles
+var NUM_PARTICLES = 100000; // number of particles to simulate
+var CYCLE_COLOR = true;     // base color of particles cycles through huespace
+var BASE_HUE = 0.0;         // base hue of particles
+
+// user parameters - dynamics controller
+var USE_CONTROLLER = true;  // periodically return particles to initial pos
+var FREE_FRAMES = 400;      // number of frames without spring force
+var RESET_FRAMES = 300;     // number of frames with spring force
+
+// set up user parameters in gui
 var gui;
 var options = setupDatGUI();
 
 // allocate the scene object, and set the camera position
 var scene = new GFX.Scene({
     cameraPos: [-150, 0, 0],
-    axesHeight: 0,
     controls: true,
-    displayStats: true,
-    skybox: false
+    displayStats: true
 });
 
+// declare global variables
+
 // particle dynamics info
-var PARTICLE_COUNT = 100000;
-var particleSystem;
-var loc_og = [];
-var loc = [];
-var vel = [];
-var acc = [];
-var color = [];
-var maxLen = 5.0;
-
-// particle initialization info
-var INIT_SHAPE = 'sphere';
-
-// dynamics controller
-var currDecay = 1.0;
-var animateFlag = true;
-var frameCount = 0;
-var stillFrames = 0;
-var freeFrames = 400;
-var regFrames = 150;
-var mult = 1.0; // 0.5 to correspond to TorusKnotGeometry
-var frac = 0.6;
+var particleSystem;         // particle mesh
+var pos_og = [];            // initial position
+var pos = [];               // particle positions
+var vel = [];               // particle velocities
+var acc = [];               // particle accelerations
+var color = [];             // particle colors
+var maxLen = 5.0;           // parameter for dynamic control of particle colors
 
 // gravity info
-var gravCenter;
+var gravCenter;             // location of center of gravity
+
 // torus knot parameters
-var phi;
-var RADIUS = 20.0; // 20.0
-var radius = 2.0;
-var r;
+var RADIUS = 20.0;          // radius of torus
+var radius = 2.0;           // radius of torus segments
+var torusKnot;              // torus knot mesh
+var mult = 1.0;             // change radius of torus trajectory relative to
+                            // TorusKnotGeometry (0.5 for correspondence)
+log = true;
+// for dynamics controller
+var frameCount = 0;         // keep track of frames
 
-var torusKnot;
-
+// keep track of time
 var clock;
 
 // Initialize the demo
 initializeDemo();
 
 // Animate the scene (map the 3D world to the 2D scene)
-animateScene();
+updateScene();
 
-/**
- * Initialize the demo.
- */
 function initializeDemo(){
-    // control degree of motion in particle sprites
+    // control degree of motion in particles
     clock = new THREE.Clock(true);
 
     // create particle system
@@ -91,40 +95,43 @@ function initializeDemo(){
 }
 
 function createParticleSystem() {
+
+    // clear particle info
+    pos_og = [];    // initial position
+    pos = [];       // particle positions
+    vel = [];       // particle velocities
+    acc = [];       // particle accelerations
+    color = [];     // particle colors
+
     // allocate a plain geometry that will hold all of the vertices which are
     // the 'particles'
     var particles = new THREE.Geometry();
     // create the vertices and add them to the particle's geometry
-    for (var i = 0; i < PARTICLE_COUNT; i++) {
-        if (INIT_SHAPE === 'box') {
-            var z = 2.0 * Math.random() * RADIUS - RADIUS;
-            var x = 2.0 * Math.random() * RADIUS - RADIUS;
-            var y = 2.0 * Math.random() * RADIUS - RADIUS;
-        } else if (INIT_SHAPE === 'sphere') {
-            var phi = Math.random() * Math.PI;
-            var theta = Math.random() * 2.0 * Math.PI;
-            var z = RADIUS * Math.cos(phi);
-            var x = RADIUS * Math.sin(phi) * Math.cos(theta);
-            var y = RADIUS * Math.sin(phi) * Math.sin(theta);
-        }
+    var phi, theta, x, y, z;
+    for (var i = 0; i < options.numParticles; i++) {
 
+        // random initial position on the surface of a sphere
+        phi = Math.random() * Math.PI;
+        theta = Math.random() * 2.0 * Math.PI;
+        z = RADIUS * Math.cos(phi);
+        x = RADIUS * Math.sin(phi) * Math.cos(theta);
+        y = RADIUS * Math.sin(phi) * Math.sin(theta);
+
+        // add vertices to particle system
         var particle = new THREE.Vector3(x, y, z);
         particles.vertices.push(particle);
-        loc_og.push(new THREE.Vector3(x, y, z));
-        loc.push(particle);
-        vel.push(new THREE.Vector3(0, 0, 0));
-        acc.push(new THREE.Vector3(0, 0, 0));
         var col = new THREE.Color(0, 0, 0);
         color.push(col.setHSL(0, 1, 0));
+
+        // keep track of particle info
+        pos_og.push(new THREE.Vector3(x, y, z));
+        pos.push(new THREE.Vector3(x, y, z));
+        vel.push(new THREE.Vector3(0, 0, 0));
+        acc.push(new THREE.Vector3(0, 0, 0));
     }
     particles.colors = color;
 
-    // var particleMaterial = new THREE.PointsMaterial({
-    //     color:0xffff00,
-    //     size: 0.4,
-    //     map: THREE.ImageUtils.loadTexture('images/snowflake.png'),
-    //     transparent: true
-    // });
+    // create particle system mesh
     var particleMaterial = new THREE.PointsMaterial({
         vertexColors: THREE.VertexColors,
         size: 0.4,
@@ -135,276 +142,367 @@ function createParticleSystem() {
     return particleSystem;
 }
 
-/**
- * Animate the scene and call rendering.
- */
-function animateScene() {
+function updateScene() {
 
     // update center of gravity
     updateGravity();
 
-    // let particles fall
-    animateParticles();
+    // subject particles to gravitational and spring forces
+    updateParticles();
 
-    // Define the function, which is called by the browser supported timer loop.
-    // If the browser tab is not visible, the animation is paused. So
-    // 'animateScene()' is called in a browser controlled loop.
-    requestAnimationFrame(animateScene);
+    // Define the function which is called by the browser supported timer loop
+    requestAnimationFrame(updateScene);
 
-    // Map the 3D scene down to the 2D screen (render the frame)
+    // map the 3D scene down to the 2D screen (render the frame)
     scene.renderScene();
 }
 
 function updateGravity() {
-    // gravCenter = new THREE.Vector3(0, 0, 10.0*Math.cos(0.1 * clock.getElapsedTime()));
 
     var p = options.p;
     var q = options.q;
+    var r;
 
-    phi = options.speed * clock.getElapsedTime();
-    // var cu = Math.cos(phi);
-    // var su = Math.sin(phi);
-    // var qOverP = q / p * phi;
+    var phi = options.speed * clock.getElapsedTime();
+
     r = 2.0 + Math.cos(q * phi);
+
+    // center of gravity moves along torus knot
     gravCenter.x = mult * RADIUS * r * Math.cos(p * phi);
     gravCenter.y = mult * RADIUS * r * Math.sin(p * phi);
     gravCenter.z = mult * RADIUS * Math.sin(q * phi);
 
-    // update camera
-    // update heading information - tangent of curve
-    var heading = new THREE.Vector3(
-        -1.0 * p * RADIUS * r * 0.5 * Math.sin(p * phi),
-        p * RADIUS * r * 0.5 * Math.cos(p * phi),
-        q * 0.5 * RADIUS * Math.cos(q * phi)
-    );
-    scene.camera.position.set(gravCenter.x, gravCenter.y, gravCenter.z);
-    // this.camera.up.set(this.up.x, this.up.y, this.up.z);
-    scene.camera.lookAt(scene.camera.position.clone().add(heading));
-
 }
 
-function animateParticles() {
+function updateParticles() {
 
-    if (options.useController) {
-        // if (frameCount > freeFrames + stillFrames) {
-        //     animateFlag = true;
-        //     if (frameCount < (stillFrames + freeFrames + regFrames * frac)) {
-        //         // first 80% of coalescence; go as sqrt (slow)
-        //         options.decay =
-        //             Math.sqrt(1.0 - (frameCount - freeFrames - stillFrames) / regFrames / 5.0);
-        //         currDecay = options.decay;
-        //     } else {
-        //         // last 20% of coalescence; go as linear (fast)
-        //         options.decay = currDecay *
-        //             (1.0 - (frameCount - freeFrames - regFrames * frac - stillFrames) /
-        //                 (regFrames * (1.0 - frac)));
-        //     }
-        //
-        //     // options.decay = Math.sqrt(1.0 - (frameCount - freeFrames) / regFrames);
-        // } else if (frameCount < stillFrames) {
-        //     animateFlag = false;
-        // } else {
-        //     animateFlag = true;
+    // update parameters based on controller
+    updateController();
+
+    /*
+     * UPDATE PARTICLE DYNAMICS
+     */
+
+    // for dynamic updates to color
+    var temp = 0.0;
+    var maxLenNew = 0.0;
+    var hueTrans = 0.16;
+    var baseHue = options.baseHue;
+    if (options.cycleColor) {
+        baseHue = 0.5 + 0.5 * Math.cos(0.05 * clock.getElapsedTime());
+    }
+    // var maxDisp = -100;
+
+    // define vertices and colors for easy access
+    var verts = particleSystem.geometry.vertices;
+    var cols = particleSystem.geometry.colors;
+
+    // loop through particles and update
+    for (var i = 0; i < verts.length; i++) {
+
+        // calculate gravitational force
+        var force = new THREE.Vector3(0, 0, 0).subVectors(gravCenter, verts[i]);
+        var len = force.length();
+        force.normalize().multiplyScalar(
+            options.mass / (Math.pow(len, options.exponent)));
+
+        // clean up any particles that pass through center of gravity
+        // if (len < 0.05) {
+        //     force.set(0.0, 0.0, 0.0);
         // }
-        // if (frameCount === (stillFrames + freeFrames + regFrames)) {
-        //     resetController();
-        // } else {
-        //     frameCount += 1;
+        //     console.log('Infs');
+
+        // if (isNaN(force.x) || isNaN(force.y) || isNaN(force.z)) {
+        //     console.log('NaNs!');
         // }
-        if (frameCount < stillFrames) {
-            animateFlag = false;
-        } else if (frameCount > freeFrames + stillFrames) {
-            animateFlag = true;
-            options.dampVel = 1.0 * Math.pow(
-                (frameCount - freeFrames - stillFrames) / regFrames, 2);
-            options.dampPos = 0.1 * Math.pow(
-                (frameCount - freeFrames - stillFrames) / (1.5 * regFrames), 2);
-            options.mass = MASS * (frameCount - freeFrames - stillFrames) /
-                regFrames
+        // if ((!isFinite(force.x)) || (!isFinite(force.y)) || (!isFinite(force.z))) {
+        //     console.log('Infs!');
+        // }
+
+        // calculate damped spring force
+        // acc += -p1*velocity - k*displacement
+        var forceReg = new THREE.Vector3(0, 0, 0).subVectors(pos_og[i], verts[i]);
+        // if (frameCount === (options.freeFrames + options.resetFrames)) {
+        //     maxDisp = Math.max(maxDisp, forceReg.length());
+        // }
+        // forceReg.multiplyScalar(options.dampPos);
+        // forceReg.addScaledVector(vel[i], -1.0 * options.dampVel);
+
+        if ((isNaN(forceReg.x) || isNaN(forceReg.y) || isNaN(forceReg.z)) && log) {
+            console.log('forceReg NaNs!');
+            console.log(pos_og[i]);
+            console.log(verts[i]);
+            forceReg.set(0.0, 0.0, 0.0);
+            log = false;
         }
-        if (frameCount === (stillFrames + freeFrames + regFrames)) {
+        // if ((!isFinite(forceReg.x)) || (!isFinite(forceReg.y)) || (!isFinite(forceReg.z))) {
+        //     console.log('forceReg Infs!');
+        //     forceReg.set(0.0, 0.0, 0.0);
+        // }
+
+        // update dynamics
+        acc[i].add(force);
+        // acc[i].add(forceReg);
+        vel[i].add(acc[i]);
+        if (vel[i].length() > len) {
+            pos[i].add(len);
+            vel[i].multiplyScalar(0.0);
+        } else {
+            pos[i].add(vel[i]);
+        }
+
+        // if (isNaN(acc[i].x) || isNaN(acc[i].y) || isNaN(acc[i].z)) {
+        //     console.log('acceleration NaNs!');
+        // }
+        // if ((!isFinite(acc[i].x)) || (!isFinite(acc[i].y)) || (!isFinite(acc[i].z))) {
+        //     console.log('acceleration Infs!');
+        // }
+
+        // actually update vertices in mesh
+        verts[i].set(pos[i].x, pos[i].y, pos[i].z);
+
+        // clear out acceleration
+        acc[i].multiplyScalar(0.0);
+
+        // set color based on velocity
+        var speed = vel[i].length();
+        var speedScaled = speed / (maxLen * 1.2);
+        if (speedScaled < 0.5) {
+            // move color from red to yellow
+            temp = baseHue + speedScaled * 2.0 * hueTrans;
+            cols[i].setHSL(temp - Math.floor(temp), 1, 0.5);
+        } else {
+            // move color from yellow to white
+            temp = baseHue + hueTrans;
+            cols[i].setHSL(temp - Math.floor(temp), 1, speedScaled);
+        }
+        if (speed > maxLenNew) {
+            maxLenNew = speed
+        }
+    }
+    // update velocity ceiling
+    maxLen = 0.99 * maxLen + 0.01 * maxLenNew;
+
+    // update particle system info on gpu
+    particleSystem.geometry.verticesNeedUpdate = true;
+    particleSystem.geometry.colorsNeedUpdate = true;
+
+    // if (frameCount === (options.freeFrames + options.resetFrames)) {
+    //     console.log(maxDisp);
+    // }
+}
+
+function resetParticles() {
+    var phi, theta, x, y, z;
+    for (var i = 0; i < options.numParticles; i++) {
+        // random initial position on the surface of a sphere
+        phi = Math.random() * Math.PI;
+        theta = Math.random() * 2.0 * Math.PI;
+        z = RADIUS * Math.cos(phi);
+        x = RADIUS * Math.sin(phi) * Math.cos(theta);
+        y = RADIUS * Math.sin(phi) * Math.sin(theta);
+
+        // reset particle position/velocity/acceleration
+        particleSystem.geometry.vertices[i].set(x, y, z);
+        pos[i].set(x, y, z);
+        vel[i].multiplyScalar(0.0);
+        acc[i].multiplyScalar(0.0);
+    }
+    // update particle system info on gpu
+    particleSystem.geometry.verticesNeedUpdate = true;
+}
+
+function updateController() {
+    if (options.useController) {
+        if (frameCount > options.freeFrames) {
+            // return particles to initial locations
+
+            // increase velocity damping
+            options.dampVel = 0.5 * Math.pow(
+                (frameCount - options.freeFrames) / options.resetFrames, 8);
+            // increase spring constant
+            options.dampPos = 0.05 * Math.pow(
+                (frameCount - options.freeFrames) / (1.5 * options.resetFrames), 2);
+            // decrease gravitational mass
+            options.mass = MASS *
+                (frameCount - options.freeFrames) / options.resetFrames
+        }
+        if (frameCount === (options.freeFrames + options.resetFrames)) {
             resetController();
         } else {
             frameCount += 1;
         }
     }
-
-    if (animateFlag) {
-        var maxLenNew = 0.0;
-        var verts = particleSystem.geometry.vertices;
-        var cols = particleSystem.geometry.colors;
-        var colorTrans = 0.16;
-        var colorInit = 0.0;
-        if (options.changeColor) {
-            colorInit = 0.5 + 0.5 * Math.cos(0.05 * clock.getElapsedTime());
-        }
-        var temp = 0.0;
-        for (var i = 0; i < verts.length; i++) {
-
-            // gravitational force
-            var force = new THREE.Vector3(0, 0, 0).subVectors(gravCenter, verts[i]);
-            var len = force.length();
-            force.normalize().multiplyScalar(
-                options.mass / (Math.pow(len, options.exponent)));
-
-            // regularization force (like gravity for now)
-            // acc += -a*v - k*x
-            // var forceReg = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], verts[i]);
-            // var lenReg = forceReg.length();
-            // forceReg.normalize().multiplyScalar(
-            //     options.decay / Math.pow(lenReg, 2.0)
-            // );
-
-            // spring force
-            // acc += -a*v - k*x
-            var forceReg = new THREE.Vector3(0, 0, 0).subVectors(loc_og[i], verts[i]);
-            // var forceReg = new THREE.Vector3(0, 0, 0).sub(verts[i]);
-            forceReg.multiplyScalar(options.dampPos);
-            forceReg.addScaledVector(vel[i], -1.0 * options.dampVel);
-
-            // update dynamics
-            acc[i].add(force);
-            acc[i].add(forceReg);
-            // if (options.decay > 0 && lenReg > 0.01) {
-            //     acc[i].add(forceReg);
-            // }
-            vel[i].add(acc[i]);
-            if (vel[i].length() > len) {
-                loc[i].add(len);
-                vel[i].multiplyScalar(0.0);
-            } else {
-                loc[i].add(vel[i]);
-            }
-
-            // scale position between current location and original location
-            // loc[i].set(
-            //     options.decay * loc[i].x + (1.0 - options.decay) * loc_og[i].x,
-            //     options.decay * loc[i].y + (1.0 - options.decay) * loc_og[i].y,
-            //     options.decay * loc[i].z + (1.0 - options.decay) * loc_og[i].z
-            // );
-            // vel[i].multiplyScalar(options.decay);
-            // if (options.useController && (frameCount === 0)) {
-            //     loc[i].set(loc_og[i].x, loc_og[i].y, loc_og[i].z);
-            //     vel[i].multiplyScalar(0.0);
-            // }
-
-            verts[i].set(loc[i].x, loc[i].y, loc[i].z);
-            acc[i].multiplyScalar(0.0); // clear out acceleration
-
-            // set color based on velocity
-            var speed = vel[i].length();
-            var speedScaled = speed / (maxLen * 1.2);
-            if (speedScaled < 0.5) {
-                // move color from red to yellow
-                temp = colorInit + speedScaled * 2.0 * colorTrans;
-                cols[i].setHSL(temp - Math.floor(temp), 1, 0.5);
-            } else {
-                // move color from yellow to white
-                temp = colorInit + colorTrans;
-                cols[i].setHSL(temp - Math.floor(temp), 1, speedScaled);
-            }
-            if (speed > maxLenNew) {
-                maxLenNew = speed
-            }
-        }
-        maxLen = 0.99 * maxLen + 0.01 * maxLenNew;
-        particleSystem.geometry.verticesNeedUpdate = true;
-        particleSystem.geometry.colorsNeedUpdate = true;
-    }
-}
-
-function resetParticles() {
-    for (var i = 0; i < PARTICLE_COUNT; i++) {
-        // randomly initialize position
-        if (INIT_SHAPE === 'box') {
-            var z = 2.0 * Math.random() * RADIUS - RADIUS;
-            var x = 2.0 * Math.random() * RADIUS - RADIUS;
-            var y = 2.0 * Math.random() * RADIUS - RADIUS;
-        } else if (INIT_SHAPE === 'sphere') {
-            var phi = Math.random() * Math.PI;
-            var theta = Math.random() * 2.0 * Math.PI;
-            var z = RADIUS * Math.cos(phi);
-            var x = RADIUS * Math.sin(phi) * Math.cos(theta);
-            var y = RADIUS * Math.sin(phi) * Math.sin(theta);
-        }
-        // reset particle location/velocity/acceleration
-        particleSystem.geometry.vertices[i].set(x, y, z);
-        loc[i].set(x, y, z);
-        vel[i].multiplyScalar(0.0);
-        acc[i].multiplyScalar(0.0);
-    }
 }
 
 function resetController() {
     frameCount = 0;
-    options.decay = 1.0;
     options.dampPos = 0.0;
     options.dampVel = 0.0;
-    maxLen = 5.0;
     options.mass = MASS;
+    maxLen = 5.0;
 }
 
-/**
- * Specify parameters and user interface
- */
 function setupDatGUI() {
 
     var options = [];
 
-    options.torus = SHOW_TORUS;
-    options.changeColor = CHANGE_COLOR;
-    options.useController = USE_CONTROLLER;
-    var pList = [1, 2, 3, 4, 5];
-    options.p = P_INIT;
-    var qList = [1, 2, 3, 4, 5];
-    options.q = Q_INIT;
-    options.mass = MASS;
-    options.exponent = EXPONENT;
-    options.speed = SPEED;
-    options.decay = 1.0;
-    options.dampVel = DAMP_VEL_PARAM;
-    options.dampPos = DAMP_POS_PARAM;
-    options.reset = function() {
-        resetParticles();
-        resetController();
-    };
-
+    // initialize gui object
     gui = new dat.GUI();
 
-    gui.add(options, 'torus').onChange(function() {
+
+    /*
+     * add gravitational force options to gui
+     */
+    var f1 = gui.addFolder('Gravity parameters');
+
+    // show torus radio button
+    options.torus = SHOW_TORUS;
+    f1.add(options, 'torus').onChange(function() {
        if (options.torus) {
            addTorusKnot();
        } else {
            removeTorusKnot();
        }
     });
-    gui.add(options, 'changeColor');
-    gui.add(options, 'useController').onChange(function() {
+
+    // p parameter for torus list
+    var pList = [1, 2, 3, 4, 5];
+    options.p = P_INIT;
+    f1.add(options, 'p', pList).onChange(function() {
+        if (options.torus) {
+            removeTorusKnot();
+            addTorusKnot();
+        }
+    });
+
+    // q parameter for torus list
+    var qList = [1, 2, 3, 4, 5];
+    options.q = Q_INIT;
+    f1.add(options, 'q', qList).onChange(function() {
+        if (options.torus) {
+            removeTorusKnot();
+            addTorusKnot();
+        }
+    });
+
+    // gravitational mass slider
+    options.mass = MASS;
+    f1.add(options, 'mass', 0.0, 1.0);
+
+    // gravitational force exponent slider
+    options.exponent = EXPONENT;
+    f1.add(options, 'exponent', 0.1, 2.0);
+
+    // speed of center of mass slider
+    options.speed = SPEED;
+    f1.add(options, 'speed', 0.0, 5.0);
+
+
+    /*
+     * add spring force options to gui
+     */
+    var f2 = gui.addFolder('Spring parameters');
+
+    // coefficient of damping on velocity term slider
+    options.dampVel = DAMP_VEL_PARAM;
+    f2.add(options, 'dampVel', 0.0, 1.0);
+
+    // spring constant slider
+    options.dampPos = DAMP_POS_PARAM;
+    f2.add(options, 'dampPos', 0.0, 0.01);
+
+
+    /*
+     * add particle options to gui
+     */
+    var f3 = gui.addFolder('Particle parameters');
+
+    // change number of particles text field
+    options.numParticles = NUM_PARTICLES;
+    f3.add(options, 'numParticles').onChange(function() {
+        // make sure input is a reasonable integer
+        options.numParticles = Math.round(options.numParticles);
+        if (options.numParticles > 200000) {
+            options.numParticles = 200000;
+        } else if (options.numParticles < 1) {
+            options.numParticles = 1;
+        }
+        // remove old particle system
+        scene.remove(particleSystem);
+
+        // create new particle system
+        particleSystem = createParticleSystem();
+
+        // add new particle system to scene
+        scene.add(particleSystem);
+
+        // reset controller
+        resetController();
+    });
+
+    // cycle through base colors of particles radio button
+    options.cycleColor = CYCLE_COLOR;
+    f3.add(options, 'cycleColor');
+
+    // change base color with color controller
+    options.baseHue = BASE_HUE; // hue
+    options.colorInit = {h: 360 * BASE_HUE, s: 1.0, v: 1.0}; // actual color
+    f3.addColor(options, 'colorInit').onChange(function() {
+        options.baseHue = options.colorInit.h / 360.0;
+    });
+
+
+    /*
+     * add controller options to gui
+     */
+    var f4 = gui.addFolder('Controller parameters');
+
+    // controller radio button
+    options.useController = USE_CONTROLLER;
+    f4.add(options, 'useController').onChange(function() {
         if (options.useController) {
             frameCount = 0.0;
         } else {
             options.decay = 1.0;
         }
     });
-    gui.add(options, 'p', pList).onChange(function() {
-        if (options.torus) {
-            removeTorusKnot();
-            addTorusKnot();
+
+    // change number of free frames in text field
+    options.freeFrames = FREE_FRAMES;
+    f4.add(options, 'freeFrames').onChange(function() {
+        // make sure input is a reasonable integer
+        options.freeFrames = Math.round(options.freeFrames);
+        if (options.freeFrames > 1000000) {
+            options.freeFrames = 1000000;
+        } else if (options.freeFrames < 0) {
+            options.freeFrames = 0;
         }
+        resetController();
     });
-    gui.add(options, 'q', qList).onChange(function() {
-        if (options.torus) {
-            removeTorusKnot();
-            addTorusKnot();
+
+    // change number of regularization frames in text field
+    options.resetFrames = RESET_FRAMES;
+    f4.add(options, 'resetFrames').onChange(function() {
+        // make sure input is a reasonable integer
+        options.resetFrames = Math.round(options.resetFrames);
+        if (options.resetFrames > 1000000) {
+            options.resetFrames = 1000000;
+        } else if (options.resetFrames < 0) {
+            options.resetFrames = 0;
         }
+        resetController();
     });
-    gui.add(options, 'mass', 0.0, 1.0);
-    gui.add(options, 'exponent', 0.1, 2.0);
-    gui.add(options, 'speed', 0.0, 5.0);
-    gui.add(options, 'dampVel', 0.0, 1.0);
-    gui.add(options, 'dampPos', 0.0, 0.01);
+
+
+    /*
+     * add reset button
+     */
+    options.reset = function() {
+        resetParticles();
+        resetController();
+    };
     gui.add(options, 'reset');
-    // gui.add(options, 'decay', 0.0, 1.0);
 
     return options;
 }
@@ -413,7 +511,7 @@ function addTorusKnot() {
     var geometry = new THREE.TorusKnotGeometry(
         RADIUS, radius, 256, 8, options.p, options.q);
     var material = new THREE.MeshPhongMaterial({
-        color: 0xaa0000,
+        color: 0x333333,
         side: THREE.DoubleSide
     });
     torusKnot = new THREE.Mesh(geometry, material);

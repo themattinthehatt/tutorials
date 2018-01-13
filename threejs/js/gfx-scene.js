@@ -36,7 +36,6 @@ GFX.Scene = function(parameters) {
     // camera controls
     this.controls = false;
     this.orbitControls = [];
-    this.trackControls = [];
 
     // lighting
     this.defaultLights = true;
