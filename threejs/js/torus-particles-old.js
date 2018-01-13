@@ -372,11 +372,11 @@ function setupDatGUI() {
     gui = new dat.GUI();
 
     gui.add(options, 'torus').onChange(function() {
-       if (options.torus) {
-           addTorusKnot();
-       } else {
-           removeTorusKnot();
-       }
+        if (options.torus) {
+            addTorusKnot();
+        } else {
+            removeTorusKnot();
+        }
     });
     gui.add(options, 'changeColor');
     gui.add(options, 'useController').onChange(function() {
